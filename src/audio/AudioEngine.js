@@ -283,28 +283,30 @@ export class AudioEngine {
   fadeIn(durationSeconds = 2.5) {
     if (!this.ctx || !this.songMasterGain) return;
     const now = this.ctx.currentTime;
-    const targetVol = this.songMasterGain.gain.value > 0.05 ? this.songMasterGain.gain.value : 0.9;
+    const targetVol = (this.savedMasterGainValue !== undefined) ? this.savedMasterGainValue : (this.songMasterGain.gain.value > 0.05 ? this.songMasterGain.gain.value : 0.9);
 
     this.songMasterGain.gain.cancelScheduledValues(now);
-    this.songMasterGain.gain.setValueAtTime(0.0001, now);
+    this.songMasterGain.gain.setValueAtTime(0, now);
 
     if (!this.isPlaying) {
       this.play();
     }
 
-    this.songMasterGain.gain.exponentialRampToValueAtTime(targetVol, now + durationSeconds);
+    this.songMasterGain.gain.linearRampToValueAtTime(targetVol, now + durationSeconds);
   }
 
   async fadeOut(durationSeconds = 2.5) {
     if (!this.ctx || !this.songMasterGain || !this.isPlaying) return;
     const now = this.ctx.currentTime;
     const currentVol = this.songMasterGain.gain.value > 0.05 ? this.songMasterGain.gain.value : 0.9;
+    this.savedMasterGainValue = currentVol;
 
     this.songMasterGain.gain.cancelScheduledValues(now);
     this.songMasterGain.gain.setValueAtTime(currentVol, now);
-    this.songMasterGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
+    this.songMasterGain.gain.linearRampToValueAtTime(0, now + durationSeconds);
 
     return new Promise((resolve) => {
+      // Wait durationSeconds + 50ms safety buffer so volume reaches complete zero before stopping sources
       setTimeout(() => {
         if (this.isPlaying) {
           this.pause();
@@ -314,9 +316,10 @@ export class AudioEngine {
           this.songMasterGain.gain.setValueAtTime(currentVol, this.ctx.currentTime);
         }
         resolve();
-      }, durationSeconds * 1000);
+      }, (durationSeconds + 0.05) * 1000);
     });
   }
+
 
 
   getMixState() {
