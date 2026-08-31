@@ -233,8 +233,69 @@ function initApp() {
   const padBtn = document.getElementById('padPlayerBtn');
   const closePadBtn = document.getElementById('closePadModalBtn');
 
-  padBtn.addEventListener('click', () => padModal.classList.add('open'));
   closePadBtn.addEventListener('click', () => padModal.classList.remove('open'));
+
+  function ensurePadPlayer() {
+    if (!padPlayer) {
+      if (!audioEngine.ctx) audioEngine.init();
+      padPlayer = new PadPlayer(audioEngine.ctx);
+    }
+    if (!padPlayer.ctx) padPlayer.init(audioEngine.masterGain);
+    return padPlayer;
+  }
+
+  function togglePadPlayStop() {
+    const player = ensurePadPlayer();
+    if (player.activeKey) {
+      player.stopKey();
+      updatePadGridActiveKey(null);
+      padBtn.classList.remove('active');
+    } else {
+      const targetKey = (currentSong && currentSong.key) ? currentSong.key : 'C';
+      player.playKey(targetKey, audioEngine.masterGain, audioEngine.ctx);
+      updatePadGridActiveKey(targetKey);
+      padBtn.classList.add('active');
+    }
+  }
+
+  // Press & hold (Long Press) vs Single Click detection for padBtn
+  let padHoldTimer = null;
+  let isPadLongPress = false;
+
+  const startPadHold = () => {
+    isPadLongPress = false;
+    padHoldTimer = setTimeout(() => {
+      isPadLongPress = true;
+      padModal.classList.add('open');
+    }, 400); // 400ms threshold for hold to open modal
+  };
+
+  const cancelPadHold = () => {
+    if (padHoldTimer) {
+      clearTimeout(padHoldTimer);
+      padHoldTimer = null;
+    }
+  };
+
+  padBtn.addEventListener('mousedown', startPadHold);
+  padBtn.addEventListener('mouseleave', cancelPadHold);
+
+  padBtn.addEventListener('touchstart', (e) => {
+    startPadHold();
+  }, { passive: true });
+
+  padBtn.addEventListener('touchend', () => {
+    cancelPadHold();
+  });
+
+  padBtn.addEventListener('click', (e) => {
+    cancelPadHold();
+    if (isPadLongPress) {
+      isPadLongPress = false;
+      return; // Ignore click action if long press opened modal
+    }
+    togglePadPlayStop();
+  });
 
   const padGrid = document.getElementById('padGrid');
   padGrid.addEventListener('click', (e) => {
@@ -242,18 +303,13 @@ function initApp() {
     if (!btn) return;
     const key = btn.dataset.key;
 
-    if (!padPlayer) {
-      if (!audioEngine.ctx) audioEngine.init();
-      padPlayer = new PadPlayer(audioEngine.ctx);
-    }
-    if (!padPlayer.ctx) padPlayer.init(audioEngine.masterGain);
-
-    if (padPlayer.activeKey === key) {
-      padPlayer.stopKey();
+    const player = ensurePadPlayer();
+    if (player.activeKey === key) {
+      player.stopKey();
       updatePadGridActiveKey(null);
       padBtn.classList.remove('active');
     } else {
-      padPlayer.playKey(key, audioEngine.masterGain, audioEngine.ctx);
+      player.playKey(key, audioEngine.masterGain, audioEngine.ctx);
       updatePadGridActiveKey(key);
       padBtn.classList.add('active');
     }
@@ -265,6 +321,11 @@ function initApp() {
       if (k.dataset.key === key) k.classList.add('active');
       else k.classList.remove('active');
     });
+    if (key) {
+      padBtn.classList.add('active');
+    } else {
+      padBtn.classList.remove('active');
+    }
   }
 
   document.getElementById('stopPadBtn').addEventListener('click', () => {
@@ -272,6 +333,7 @@ function initApp() {
     updatePadGridActiveKey(null);
     padBtn.classList.remove('active');
   });
+
 
   // Transposition buttons for ChordSync
   document.getElementById('transposeUpBtn').addEventListener('click', () => {
