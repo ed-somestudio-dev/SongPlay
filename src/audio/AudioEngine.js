@@ -15,7 +15,7 @@ export class AudioEngine {
     this.startTime = 0;
     this.pauseOffset = 0;
 
-    // Default tracks list
+    // Default multitrack stems list
     this.trackNames = [
       { id: 'click', label: 'Click', defaultVol: 0.8 },
       { id: 'guide', label: 'Guia', defaultVol: 0.7 },
@@ -23,8 +23,7 @@ export class AudioEngine {
       { id: 'bass', label: 'Baixo', defaultVol: 0.8 },
       { id: 'guitar1', label: 'Guitar 1', defaultVol: 0.75 },
       { id: 'guitar2', label: 'Guitar 2', defaultVol: 0.7 },
-      { id: 'keys', label: 'Teclas', defaultVol: 0.8 },
-      { id: 'pad', label: 'Pad', defaultVol: 0.65 }
+      { id: 'keys', label: 'Teclas', defaultVol: 0.8 }
     ];
   }
 
@@ -53,14 +52,14 @@ export class AudioEngine {
     this.masterAnalyser.smoothingTimeConstant = 0.6;
     this.globalMasterGain.connect(this.masterAnalyser);
 
-    // Setup channel nodes
+    // Setup standard channel nodes
     this.trackNames.forEach(track => {
       const gainNode = this.ctx.createGain();
       gainNode.gain.value = track.defaultVol;
 
       const analyserNode = this.ctx.createAnalyser();
-      analyserNode.fftSize = 256; // More samples → better time-domain resolution
-      analyserNode.smoothingTimeConstant = 0.6; // Smooth meter needle movement
+      analyserNode.fftSize = 256;
+      analyserNode.smoothingTimeConstant = 0.6;
 
       gainNode.connect(analyserNode);
       analyserNode.connect(this.masterGain);
@@ -76,6 +75,31 @@ export class AudioEngine {
         bufferSource: null
       };
     });
+
+    // Setup dedicated Pad channel node (independent volume)
+    const savedPadVol = parseFloat(localStorage.getItem('songplay_pad_vol'));
+    const initialPadVol = isNaN(savedPadVol) ? 0.65 : savedPadVol;
+
+    const padGain = this.ctx.createGain();
+    padGain.gain.value = initialPadVol;
+
+    const padAnalyser = this.ctx.createAnalyser();
+    padAnalyser.fftSize = 256;
+    padAnalyser.smoothingTimeConstant = 0.6;
+
+    padGain.connect(padAnalyser);
+    padAnalyser.connect(this.masterGain);
+
+    this.channels['pad'] = {
+      label: 'Pad',
+      gainNode: padGain,
+      analyserNode: padAnalyser,
+      volume: initialPadVol,
+      isMuted: false,
+      isSolo: false,
+      audioBuffer: null,
+      bufferSource: null
+    };
 
     this._startSyntheticAudioGenerators();
   }
@@ -214,6 +238,11 @@ export class AudioEngine {
   setTrackVolume(trackId, volume) {
     if (!this.channels[trackId]) return;
     this.channels[trackId].volume = volume;
+    if (trackId === 'pad') {
+      try {
+        localStorage.setItem('songplay_pad_vol', volume);
+      } catch (e) {}
+    }
     this._updateChannelGains();
   }
 
@@ -254,6 +283,7 @@ export class AudioEngine {
   getMixState() {
     const channelsState = {};
     Object.keys(this.channels).forEach(trackId => {
+      if (trackId === 'pad') return; // Exclude independent pad from per-song mixState
       const ch = this.channels[trackId];
       channelsState[trackId] = {
         volume: ch.volume,
@@ -272,6 +302,7 @@ export class AudioEngine {
 
     if (mixState.channels) {
       Object.keys(mixState.channels).forEach(trackId => {
+        if (trackId === 'pad') return; // Do NOT overwrite Pad volume on song change!
         if (this.channels[trackId]) {
           const state = mixState.channels[trackId];
           if (typeof state.volume === 'number') this.channels[trackId].volume = state.volume;
@@ -280,6 +311,7 @@ export class AudioEngine {
         }
       });
     }
+
 
     this.soloActive = Object.values(this.channels).some(ch => ch.isSolo);
     this._updateChannelGains();

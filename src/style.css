@@ -426,40 +426,44 @@ body {
   overflow: hidden;
 }
 
-.channel-strip.master-strip {
-  background: #191f2c;
-  border-color: var(--border-active);
+/* Song Master Strip - Laranja */
+.channel-strip.master-strip,
+.channel-strip.song-master-strip {
+  background: #241a12;
+  border-color: #ff9100;
   width: 96px;
   flex: 0 0 96px;
 }
 
+.channel-strip.master-strip .channel-header,
+.channel-strip.song-master-strip .channel-header {
+  color: #ff9100;
+}
+
+/* Pad Master Strip - Roxo (Independente) */
+.channel-strip.pad-master-strip {
+  background: #1e1329;
+  border-color: #a855f7;
+  width: 96px;
+  flex: 0 0 96px;
+}
+
+.channel-strip.pad-master-strip .channel-header {
+  color: #a855f7;
+}
+
+/* Device Main Master Strip - Azul */
 .channel-strip.global-master-strip {
-  background: #1c182b;
-  border-color: var(--accent-purple);
+  background: #0d1b2a;
+  border-color: #00d2ff;
   width: 96px;
   flex: 0 0 96px;
-}
-
-.channel-header {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  text-align: center;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.channel-strip.master-strip .channel-header {
-  color: var(--accent-amber);
 }
 
 .channel-strip.global-master-strip .channel-header {
-  color: var(--accent-purple);
+  color: #00d2ff;
 }
+
 
 .channel-controls {
   display: flex;

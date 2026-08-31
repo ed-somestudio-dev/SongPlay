@@ -37,12 +37,12 @@ export class MixerConsole {
       this.container.appendChild(stripEl);
     });
 
-    // 1. Render Song Master Channel Strip (saved per song)
+    // 1. Render Song Master Channel Strip (Laranja - saved per song)
     const songMasterVol = this.audioEngine.songMasterGain ? this.audioEngine.songMasterGain.gain.value : 0.9;
     const songMasterStrip = document.createElement('div');
-    songMasterStrip.className = 'channel-strip master-strip';
+    songMasterStrip.className = 'channel-strip song-master-strip';
     songMasterStrip.innerHTML = `
-      <div class="channel-header" title="Master da Música">MÚSICA</div>
+      <div class="channel-header" title="Master da Música (Salvo por Música)">MÚSICA</div>
       <div class="channel-controls">
         <button class="sm-btn mute-btn" id="masterMuteBtn">M</button>
       </div>
@@ -58,12 +58,35 @@ export class MixerConsole {
     `;
     this.container.appendChild(songMasterStrip);
 
-    // 2. Render Global Device Master Strip (persistent across all songs)
+    // 2. Render Independent Pad Channel Strip (Roxo - independent, not saved per song)
+    const padChannel = this.audioEngine.channels['pad'] || { volume: 0.65, isMuted: false, isSolo: false };
+    const padMasterStrip = document.createElement('div');
+    padMasterStrip.className = 'channel-strip pad-master-strip';
+    padMasterStrip.dataset.trackId = 'pad';
+    padMasterStrip.innerHTML = `
+      <div class="channel-header" title="Volume do Pad Ambiente (Independente)">PAD</div>
+      <div class="channel-controls">
+        <button class="sm-btn solo-btn ${padChannel.isSolo ? 'active' : ''}" data-track="pad" data-action="solo">S</button>
+        <button class="sm-btn mute-btn ${padChannel.isMuted ? 'active' : ''}" data-track="pad" data-action="mute">M</button>
+      </div>
+      <div class="fader-area">
+        <div class="fader-track">
+          <input type="range" min="0" max="1" step="0.01" value="${padChannel.volume}" class="vertical-range fader-slider" data-track="pad">
+        </div>
+        <div class="vu-meter" id="vu-pad">
+          ${Array.from({ length: 10 }).map((_, i) => `<div class="vu-led" data-led="${i}"></div>`).join('')}
+        </div>
+      </div>
+      <div class="channel-volume-text" id="vol-txt-pad">${Math.round(padChannel.volume * 100)}%</div>
+    `;
+    this.container.appendChild(padMasterStrip);
+
+    // 3. Render Global Device Master Strip (Azul - persistent device main master)
     const globalMasterVol = this.audioEngine.globalMasterGain ? this.audioEngine.globalMasterGain.gain.value : 1.0;
     const globalMasterStrip = document.createElement('div');
     globalMasterStrip.className = 'channel-strip global-master-strip';
     globalMasterStrip.innerHTML = `
-      <div class="channel-header" title="Master Geral do Dispositivo">MAIN GERAL</div>
+      <div class="channel-header" title="Master Geral do Dispositivo (Saída Main)">MAIN GERAL</div>
       <div class="channel-controls">
         <button class="sm-btn mute-btn" id="globalMasterMuteBtn">M</button>
       </div>
@@ -97,10 +120,10 @@ export class MixerConsole {
   }
 
   updateButtonsState() {
-    this.audioEngine.trackNames.forEach(track => {
-      const channel = this.audioEngine.channels[track.id];
-      const soloBtn = this.container.querySelector(`.solo-btn[data-track="${track.id}"]`);
-      const muteBtn = this.container.querySelector(`.mute-btn[data-track="${track.id}"]`);
+    Object.keys(this.audioEngine.channels || {}).forEach(trackId => {
+      const channel = this.audioEngine.channels[trackId];
+      const soloBtn = this.container.querySelector(`.solo-btn[data-track="${trackId}"]`);
+      const muteBtn = this.container.querySelector(`.mute-btn[data-track="${trackId}"]`);
       if (soloBtn) soloBtn.classList.toggle('active', !!channel.isSolo);
       if (muteBtn) muteBtn.classList.toggle('active', !!channel.isMuted);
     });
@@ -114,7 +137,7 @@ export class MixerConsole {
         this.audioEngine.setTrackVolume(trackId, val);
         const txt = this.container.querySelector(`#vol-txt-${trackId}`);
         if (txt) txt.textContent = `${Math.round(val * 100)}%`;
-        this._notifyMixChange();
+        if (trackId !== 'pad') this._notifyMixChange();
       } else if (e.target.id === 'masterFader') {
         const val = parseFloat(e.target.value);
         this.audioEngine.setSongMasterVolume(val);
@@ -138,11 +161,11 @@ export class MixerConsole {
       if (action === 'solo' && trackId) {
         this.audioEngine.toggleSolo(trackId);
         this.updateButtonsState();
-        this._notifyMixChange();
+        if (trackId !== 'pad') this._notifyMixChange();
       } else if (action === 'mute' && trackId) {
         this.audioEngine.toggleMute(trackId);
         this.updateButtonsState();
-        this._notifyMixChange();
+        if (trackId !== 'pad') this._notifyMixChange();
       } else if (btn.id === 'masterMuteBtn') {
         btn.classList.toggle('active');
         const isMuted = btn.classList.contains('active');
@@ -160,17 +183,14 @@ export class MixerConsole {
     if (this.vuInterval) clearInterval(this.vuInterval);
 
     this.vuInterval = setInterval(() => {
-      if (!this.audioEngine.isPlaying) {
-        // Clear all meters
-        const leds = this.container.querySelectorAll('.vu-led');
-        leds.forEach(led => led.className = 'vu-led');
-        return;
-      }
+      // Clear or update meters for all active channels (including pad)
+      Object.keys(this.audioEngine.channels || {}).forEach(trackId => {
+        const level = (this.audioEngine.isPlaying || (trackId === 'pad' && this.audioEngine.channels['pad']?.volume > 0))
+          ? this.audioEngine.getChannelMeterLevel(trackId)
+          : 0;
 
-      this.audioEngine.trackNames.forEach(track => {
-        const level = this.audioEngine.getChannelMeterLevel(track.id); // 0 to 100
         const activeCount = Math.floor((level / 100) * 10);
-        const vuMeter = this.container.querySelector(`#vu-${track.id}`);
+        const vuMeter = this.container.querySelector(`#vu-${trackId}`);
         if (vuMeter) {
           const leds = vuMeter.querySelectorAll('.vu-led');
           leds.forEach((led, idx) => {
@@ -186,7 +206,7 @@ export class MixerConsole {
       });
 
       // Master meter
-      const masterLevel = this.audioEngine.getMasterMeterLevel();
+      const masterLevel = this.audioEngine.isPlaying ? this.audioEngine.getMasterMeterLevel() : 0;
       const masterActiveCount = Math.floor((masterLevel / 100) * 10);
       const masterVu = this.container.querySelector('#vu-master');
       if (masterVu) {
