@@ -57,8 +57,21 @@ export class MixerConsole {
     `;
     this.container.appendChild(masterStrip);
 
-    this._bindEvents();
+    if (!this.eventsBound) {
+      this._bindEvents();
+      this.eventsBound = true;
+    }
     this._startVUMeterAnimation();
+  }
+
+  updateButtonsState() {
+    this.audioEngine.trackNames.forEach(track => {
+      const channel = this.audioEngine.channels[track.id];
+      const soloBtn = this.container.querySelector(`.solo-btn[data-track="${track.id}"]`);
+      const muteBtn = this.container.querySelector(`.mute-btn[data-track="${track.id}"]`);
+      if (soloBtn) soloBtn.classList.toggle('active', !!channel.isSolo);
+      if (muteBtn) muteBtn.classList.toggle('active', !!channel.isMuted);
+    });
   }
 
   _bindEvents() {
@@ -83,12 +96,16 @@ export class MixerConsole {
       const trackId = btn.dataset.track;
       const action = btn.dataset.action;
 
-      if (action === 'solo') {
+      if (action === 'solo' && trackId) {
         this.audioEngine.toggleSolo(trackId);
-        this.render();
-      } else if (action === 'mute') {
+        this.updateButtonsState();
+      } else if (action === 'mute' && trackId) {
         this.audioEngine.toggleMute(trackId);
-        this.render();
+        this.updateButtonsState();
+      } else if (btn.id === 'masterMuteBtn') {
+        btn.classList.toggle('active');
+        const isMuted = btn.classList.contains('active');
+        this.audioEngine.setMasterVolume(isMuted ? 0 : 0.9);
       }
     });
   }
