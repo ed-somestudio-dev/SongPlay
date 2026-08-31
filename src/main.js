@@ -271,24 +271,88 @@ function initApp() {
     }
   });
 
-  // Fade In / Fade Out Button Listener
+  // Fade Duration & Modal Configuration
   const fadeBtn = document.getElementById('fadeBtn');
+  const fadeConfigModal = document.getElementById('fadeConfigModal');
+  const closeFadeConfigModalBtn = document.getElementById('closeFadeConfigModalBtn');
+  const fadeDurationRange = document.getElementById('fadeDurationRange');
+  const fadeDurationValue = document.getElementById('fadeDurationValue');
+  const fadePresetsGroup = document.getElementById('fadePresetsGroup');
+
+  let currentFadeDuration = parseFloat(localStorage.getItem('songplay_fade_duration')) || 2.5;
   let isFading = false;
 
+  function setFadeDuration(dur) {
+    currentFadeDuration = parseFloat(dur);
+    try { localStorage.setItem('songplay_fade_duration', currentFadeDuration); } catch (e) {}
+    fadeDurationRange.value = currentFadeDuration;
+    fadeDurationValue.textContent = `${currentFadeDuration.toFixed(1)}s`;
+
+    const presetBtns = fadePresetsGroup.querySelectorAll('.fade-preset-btn');
+    presetBtns.forEach(btn => {
+      btn.classList.toggle('active', parseFloat(btn.dataset.dur) === currentFadeDuration);
+    });
+  }
+
+  setFadeDuration(currentFadeDuration);
+
+  closeFadeConfigModalBtn.addEventListener('click', () => fadeConfigModal.classList.remove('open'));
+
+  fadePresetsGroup.addEventListener('click', (e) => {
+    const btn = e.target.closest('.fade-preset-btn');
+    if (!btn) return;
+    setFadeDuration(btn.dataset.dur);
+  });
+
+  fadeDurationRange.addEventListener('input', (e) => {
+    setFadeDuration(e.target.value);
+  });
+
+  // Long-press (press & hold > 400ms) vs Single Click detection for fadeBtn
+  let fadeHoldTimer = null;
+  let isFadeLongPress = false;
+
+  const startFadeHold = () => {
+    isFadeLongPress = false;
+    fadeHoldTimer = setTimeout(() => {
+      isFadeLongPress = true;
+      fadeConfigModal.classList.add('open');
+    }, 400);
+  };
+
+  const cancelFadeHold = () => {
+    if (fadeHoldTimer) {
+      clearTimeout(fadeHoldTimer);
+      fadeHoldTimer = null;
+    }
+  };
+
+  fadeBtn.addEventListener('mousedown', startFadeHold);
+  fadeBtn.addEventListener('mouseleave', cancelFadeHold);
+  fadeBtn.addEventListener('touchstart', startFadeHold, { passive: true });
+  fadeBtn.addEventListener('touchend', cancelFadeHold);
+
   fadeBtn.addEventListener('click', async () => {
+    cancelFadeHold();
+    if (isFadeLongPress) {
+      isFadeLongPress = false;
+      return; // Opened configuration modal
+    }
+
     if (isFading) return;
     isFading = true;
     fadeBtn.classList.add('fading');
 
     if (audioEngine.isPlaying) {
-      await audioEngine.fadeOut(2.5);
+      await audioEngine.fadeOut(currentFadeDuration);
     } else {
-      audioEngine.fadeIn(2.5);
+      audioEngine.fadeIn(currentFadeDuration);
     }
 
     isFading = false;
     fadeBtn.classList.remove('fading');
   });
+
 
 
   // Next / Prev Songs

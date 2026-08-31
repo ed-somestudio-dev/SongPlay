@@ -245,6 +245,39 @@
     </div>
   </div>
 
+  <!-- Fade Config Modal -->
+  <div class="modal-overlay" id="fadeConfigModal">
+    <div class="modal-window" style="max-width: 420px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span style="color: var(--accent-amber);">&#x1F39B;</span> Duração do Fade (In / Out)
+        </div>
+        <button class="close-btn" id="closeFadeConfigModalBtn">&times;</button>
+      </div>
+      <div style="padding: 20px 0 10px 0;">
+        <div style="margin-bottom: 14px; font-size: 0.85rem; color: var(--text-muted);">
+          Escolha o tempo de transição suave em segundos:
+        </div>
+        
+        <div class="fade-duration-presets" id="fadePresetsGroup" style="display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap;">
+          <button class="sm-btn fade-preset-btn" data-dur="1.0">1.0s</button>
+          <button class="sm-btn fade-preset-btn" data-dur="2.0">2.0s</button>
+          <button class="sm-btn fade-preset-btn active" data-dur="2.5">2.5s</button>
+          <button class="sm-btn fade-preset-btn" data-dur="3.5">3.5s</button>
+          <button class="sm-btn fade-preset-btn" data-dur="5.0">5.0s</button>
+          <button class="sm-btn fade-preset-btn" data-dur="8.0">8.0s</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <label style="font-size: 0.82rem; font-weight: 700; min-width: 100px;">Ajuste Fino:</label>
+          <input type="range" id="fadeDurationRange" min="0.5" max="15" step="0.5" value="2.5" style="flex: 1; cursor: pointer;">
+          <span id="fadeDurationValue" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-amber); min-width: 48px; text-align: right;">2.5s</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
+
 </body>
 </html>
