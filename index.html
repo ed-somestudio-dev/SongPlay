@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MultiTrack SongPlay - Live Worship Playback Engine</title>
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <div class="brand-icon">&#x25B6;</div>
+        <span>SongPlay</span>
+      </div>
+      <div class="time-bpm-display">
+        <div class="tempo-box">
+          <span class="tempo-bpm" id="hdrBpm">68 BPM</span>
+          <span class="tempo-signature" id="hdrTimeSig">4/4</span>
+        </div>
+        <div class="timer-box">
+          <span class="timer-current" id="hdrCurrentTime">00:00</span>
+          <span class="timer-total" id="hdrTotalTime">0/00 / 04:38</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <button class="transport-btn btn-pad" id="padPlayerBtn">
+        <span>PAD</span>
+      </button>
+      <button class="transport-btn" id="prevTrackBtn" title="Música Anterior">&#x23EE;</button>
+      <button class="transport-btn btn-primary" id="playPauseBtn">
+        <span id="playIcon">&#x25B6; PLAY</span>
+      </button>
+      <button class="transport-btn" id="nextTrackBtn" title="Próxima Música">&#x23ED;</button>
+      <button class="transport-btn" id="loopBtn" title="Loop de Seção">&#x25F3; LOOP</button>
+    </div>
+
+    <div class="header-right">
+      <button class="transport-btn" id="editMidiBtn" title="Editar Gatilhos MIDI">EDITAR MIDI</button>
+      <button class="transport-btn active" id="toggleChordBtn" title="Visor de Cifras Sincronizadas">CIFRAS</button>
+    </div>
+  </header>
+
+  <!-- Setlist Carousel Bar -->
+  <section class="setlist-bar" id="setlistContainer">
+    <!-- Rendered dynamically by SetlistManager.js -->
+  </section>
+
+  <!-- Timeline & Waveform Section -->
+  <section class="timeline-section">
+    <div class="section-banners" id="sectionBannersContainer">
+      <!-- Section tags rendered dynamically -->
+    </div>
+    <div class="waveform-container">
+      <canvas id="waveformCanvas"></canvas>
+    </div>
+    <div class="midi-cues-bar">
+      <div class="midi-cue-item">
+        <span class="cue-dot"></span>
+        <span>MIDI: Lyrics (C1)</span>
+      </div>
+      <div class="midi-cue-item">
+        <span class="cue-dot"></span>
+        <span>MIDI: Lights (G1)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Workspace: Mixer + Synced Chords Drawer -->
+  <main class="main-workspace">
+    <!-- Multi-Track Console Mixer -->
+    <div class="mixer-console" id="mixerConsoleContainer">
+      <!-- Rendered dynamically by MixerConsole.js -->
+    </div>
+
+    <!-- Synced Chord Chart Drawer (ChartBuilder View) -->
+    <aside class="chord-sync-panel" id="chordSyncPanel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>&#x1F3B6; Cifras Sincronizadas</span>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="sm-btn" id="transposeDownBtn">-1</button>
+          <button class="sm-btn" id="transposeUpBtn">+1</button>
+        </div>
+      </div>
+      <div class="chord-content">
+        <!-- Rendered dynamically by ChordSyncViewer.js -->
+      </div>
+    </aside>
+  </main>
+
+  <!-- Pad Player Overlay Modal -->
+  <div class="modal-overlay" id="padPlayerModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span style="color: var(--accent-purple);">&#x1F3A7;</span> Pad Player (Fundamental Ambient Pad)
+        </div>
+        <button class="close-btn" id="closePadModalBtn">&times;</button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        Sintetizador ambiente contínuo para transição suave de louvor nas 12 tonalidades musicais.
+      </p>
+      <div class="pad-grid" id="padGrid">
+        <button class="pad-key-btn" data-key="Db">Db</button>
+        <button class="pad-key-btn" data-key="Eb">Eb</button>
+        <button class="pad-key-btn" data-key="Gb">Gb</button>
+        <button class="pad-key-btn" data-key="Ab">Ab</button>
+        <button class="pad-key-btn" data-key="Bb">Bb</button>
+        <button class="pad-key-btn" data-key="B">B</button>
+        <button class="pad-key-btn" data-key="C">C</button>
+        <button class="pad-key-btn" data-key="D">D</button>
+        <button class="pad-key-btn" data-key="E">E</button>
+        <button class="pad-key-btn" data-key="F">F</button>
+        <button class="pad-key-btn" data-key="G">G</button>
+        <button class="pad-key-btn" data-key="A">A</button>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+        <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="linkSongKeyChk" checked>
+          Vincular ao tom da música
+        </label>
+        <button class="transport-btn btn-pad" id="stopPadBtn">PARAR PAD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIDI Cue Editor Modal -->
+  <div class="modal-overlay" id="midiCueModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span style="color: var(--accent-amber);">&#x2699;</span> Editar Gatilho MIDI (MIDI Cue)
+        </div>
+        <button class="close-btn" id="closeMidiModalBtn">&times;</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+        <label style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+          Barramento MIDI (Bus)
+          <select id="midiBus" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border-color); padding: 8px; border-radius: 6px;">
+            <option value="Lyrics">Lyrics & Slides (Letras)</option>
+            <option value="Lights">Lighting Control (Luzes)</option>
+            <option value="Click">Metronome Sync</option>
+          </select>
+        </label>
+
+        <label style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+          Tipo de Mensagem
+          <select id="midiMsg" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border-color); padding: 8px; border-radius: 6px;">
+            <option value="Note">Note On</option>
+            <option value="CC">Control Change (CC)</option>
+          </select>
+        </label>
+
+        <label style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+          Valor / Nota
+          <input type="text" id="midiVal" value="G-1" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border-color); padding: 8px; border-radius: 6px;">
+        </label>
+
+        <label style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+          Descrição
+          <input type="text" id="midiDesc" placeholder="Ex: Trocar slide para Verso 1" style="background: var(--bg-card); color: #fff; border: 1px solid var(--border-color); padding: 8px; border-radius: 6px;">
+        </label>
+
+        <button class="transport-btn btn-primary" id="saveMidiCueBtn" style="margin-top: 10px; justify-content: center;">
+          ATUALIZAR GATILHO MIDI
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
