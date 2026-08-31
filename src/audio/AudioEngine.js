@@ -280,6 +280,45 @@ export class AudioEngine {
     }
   }
 
+  fadeIn(durationSeconds = 2.5) {
+    if (!this.ctx || !this.songMasterGain) return;
+    const now = this.ctx.currentTime;
+    const targetVol = this.songMasterGain.gain.value > 0.05 ? this.songMasterGain.gain.value : 0.9;
+
+    this.songMasterGain.gain.cancelScheduledValues(now);
+    this.songMasterGain.gain.setValueAtTime(0.0001, now);
+
+    if (!this.isPlaying) {
+      this.play();
+    }
+
+    this.songMasterGain.gain.exponentialRampToValueAtTime(targetVol, now + durationSeconds);
+  }
+
+  async fadeOut(durationSeconds = 2.5) {
+    if (!this.ctx || !this.songMasterGain || !this.isPlaying) return;
+    const now = this.ctx.currentTime;
+    const currentVol = this.songMasterGain.gain.value > 0.05 ? this.songMasterGain.gain.value : 0.9;
+
+    this.songMasterGain.gain.cancelScheduledValues(now);
+    this.songMasterGain.gain.setValueAtTime(currentVol, now);
+    this.songMasterGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds);
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        if (this.isPlaying) {
+          this.pause();
+        }
+        if (this.ctx && this.songMasterGain) {
+          this.songMasterGain.gain.cancelScheduledValues(this.ctx.currentTime);
+          this.songMasterGain.gain.setValueAtTime(currentVol, this.ctx.currentTime);
+        }
+        resolve();
+      }, durationSeconds * 1000);
+    });
+  }
+
+
   getMixState() {
     const channelsState = {};
     Object.keys(this.channels).forEach(trackId => {

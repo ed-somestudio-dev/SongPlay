@@ -174,10 +174,37 @@ body {
   box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
 }
 
+.transport-btn.btn-fade {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.transport-btn.btn-fade:hover {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fff;
+  border-color: #ff9100;
+}
+
+.transport-btn.btn-fade.fading {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.6);
+  animation: pulse-fade 0.6s infinite alternate;
+}
+
+@keyframes pulse-fade {
+  from { opacity: 0.7; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
 .transport-btn.active {
   border-color: var(--accent-green);
   color: var(--accent-green);
 }
+
 
 /* Setlist Carousel Bar */
 .setlist-bar {

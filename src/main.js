@@ -271,6 +271,26 @@ function initApp() {
     }
   });
 
+  // Fade In / Fade Out Button Listener
+  const fadeBtn = document.getElementById('fadeBtn');
+  let isFading = false;
+
+  fadeBtn.addEventListener('click', async () => {
+    if (isFading) return;
+    isFading = true;
+    fadeBtn.classList.add('fading');
+
+    if (audioEngine.isPlaying) {
+      await audioEngine.fadeOut(2.5);
+    } else {
+      audioEngine.fadeIn(2.5);
+    }
+
+    isFading = false;
+    fadeBtn.classList.remove('fading');
+  });
+
+
   // Next / Prev Songs
   document.getElementById('nextTrackBtn').addEventListener('click', () => {
     if (setlistManager.activeSongIndex < setlistManager.songs.length - 1) {
