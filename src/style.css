@@ -800,12 +800,39 @@ body {
 
 
 .panel-header {
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
+
+.panel-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-group-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.btn-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 
 .panel-title {
   font-weight: 700;
