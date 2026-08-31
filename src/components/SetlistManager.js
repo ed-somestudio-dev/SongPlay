@@ -2,6 +2,7 @@ export class SetlistManager {
   constructor(containerElement, onSongSelectCallback) {
     this.container = containerElement;
     this.onSongSelect = onSongSelectCallback;
+    this.queuedSong = null;
     this.songs = [
       {
         id: 'a_ele_a_gloria',
@@ -135,6 +136,11 @@ export class SetlistManager {
     return this.songs[this.activeSongIndex];
   }
 
+  setQueuedSong(song) {
+    this.queuedSong = song;
+    this.render();
+  }
+
   addSong(song) {
     this.songs.push(song);
     this.activeSongIndex = this.songs.length - 1;
@@ -147,8 +153,11 @@ export class SetlistManager {
     this.container.innerHTML = '';
 
     this.songs.forEach((song, idx) => {
+      const isActive = idx === this.activeSongIndex;
+      const isQueued = this.queuedSong && this.queuedSong.id === song.id;
+
       const card = document.createElement('div');
-      card.className = `setlist-card ${idx === this.activeSongIndex ? 'active' : ''}`;
+      card.className = `setlist-card ${isActive ? 'active' : ''} ${isQueued ? 'queued' : ''}`;
       card.innerHTML = `
         <img src="${song.cover}" class="card-art" alt="${song.title}">
         <div class="card-info">
@@ -162,9 +171,7 @@ export class SetlistManager {
       `;
 
       card.addEventListener('click', () => {
-        this.activeSongIndex = idx;
-        this.render();
-        if (this.onSongSelect) this.onSongSelect(song);
+        if (this.onSongSelect) this.onSongSelect(song, idx);
       });
 
       this.container.appendChild(card);

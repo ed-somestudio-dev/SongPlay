@@ -44,8 +44,8 @@ function initApp() {
   const setlistContainer = document.getElementById('setlistContainer');
   let currentSong = null;
 
-  const setlistManager = new SetlistManager(setlistContainer, (song) => {
-    loadSong(song);
+  const setlistManager = new SetlistManager(setlistContainer, (song, idx) => {
+    requestSongChange(song, idx);
   });
   setlistManager.render();
 
@@ -70,6 +70,7 @@ function initApp() {
 
   // ── State variables declared here (before loadSong) to avoid TDZ errors ──
   let queuedSection = null;
+  let queuedNextSong = null;
   let lastHandledTransitionTime = -1;
   let lastActiveSecLabel = null;
   let lastQueuedSecLabel = null;
@@ -130,6 +131,32 @@ function initApp() {
     waveformTimeline.setLoopedSection(loopedSection);
   });
 
+  function requestSongChange(song, songIndex = -1) {
+    if (!song) return;
+
+    if (audioEngine.isPlaying) {
+      // While playing: queue transition for end of current section
+      if (queuedNextSong && queuedNextSong.id === song.id) {
+        queuedNextSong = null; // cancel queue if clicking same queued song again
+      } else {
+        queuedNextSong = song;
+      }
+      setlistManager.setQueuedSong(queuedNextSong);
+    } else {
+      // While paused: change song immediately
+      queuedNextSong = null;
+      setlistManager.setQueuedSong(null);
+      if (songIndex >= 0) {
+        setlistManager.activeSongIndex = songIndex;
+      } else {
+        const foundIdx = setlistManager.songs.findIndex(s => s.id === song.id);
+        if (foundIdx >= 0) setlistManager.activeSongIndex = foundIdx;
+      }
+      setlistManager.render();
+      loadSong(song);
+    }
+  }
+
   function handleSectionClick(sec, isShiftKey = false) {
     if (isShiftKey || !audioEngine.isPlaying) {
       // Shift+click or paused = IMMEDIATE jump
@@ -160,13 +187,26 @@ function initApp() {
       chordSyncViewer.updateActiveSection(activeSec.label);
     }
 
-    // Check Section End Transition (Quantized Jump or Section/Global Loop)
+    // Check Section End Transition (Song Switch > Quantized Jump > Section Loop)
     if (audioEngine.isPlaying && activeSec) {
       const timeUntilEnd = activeSec.endTime - currentTime;
       if (timeUntilEnd <= 0.3 && Math.abs(currentTime - lastHandledTransitionTime) > 1.0) {
         lastHandledTransitionTime = currentTime;
 
-        if (queuedSection) {
+        if (queuedNextSong) {
+          const nextSongToLoad = queuedNextSong;
+          queuedNextSong = null;
+          queuedSection = null;
+          waveformTimeline.setQueuedSection(null);
+          setlistManager.setQueuedSong(null);
+
+          const foundIdx = setlistManager.songs.findIndex(s => s.id === nextSongToLoad.id);
+          if (foundIdx >= 0) setlistManager.activeSongIndex = foundIdx;
+
+          loadSong(nextSongToLoad);
+          setlistManager.render();
+          audioEngine.play(); // Seamless transition into new song
+        } else if (queuedSection) {
           const target = queuedSection;
           queuedSection = null;
           waveformTimeline.setQueuedSection(null);
@@ -214,17 +254,17 @@ function initApp() {
   // Next / Prev Songs
   document.getElementById('nextTrackBtn').addEventListener('click', () => {
     if (setlistManager.activeSongIndex < setlistManager.songs.length - 1) {
-      setlistManager.activeSongIndex++;
-      setlistManager.render();
-      loadSong(setlistManager.getActiveSong());
+      const nextIdx = setlistManager.activeSongIndex + 1;
+      const nextSong = setlistManager.songs[nextIdx];
+      requestSongChange(nextSong, nextIdx);
     }
   });
 
   document.getElementById('prevTrackBtn').addEventListener('click', () => {
     if (setlistManager.activeSongIndex > 0) {
-      setlistManager.activeSongIndex--;
-      setlistManager.render();
-      loadSong(setlistManager.getActiveSong());
+      const prevIdx = setlistManager.activeSongIndex - 1;
+      const prevSong = setlistManager.songs[prevIdx];
+      requestSongChange(prevSong, prevIdx);
     }
   });
 
