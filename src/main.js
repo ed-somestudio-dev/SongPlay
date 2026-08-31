@@ -178,6 +178,7 @@ function initApp() {
       waveformTimeline.setQueuedSection(null);
       audioEngine.seek(sec.startTime);
       waveformTimeline.render();
+      chordSyncViewer.updateActiveSection(sec.label, null);
     } else {
       // Regular click while playing = queue jump for end of current section
       if (queuedSection && queuedSection.label === sec.label) {
@@ -186,6 +187,10 @@ function initApp() {
         queuedSection = sec;
       }
       waveformTimeline.setQueuedSection(queuedSection);
+      const currentTime = audioEngine.currentTime;
+      const activeSec = (currentSong && currentSong.sections) ? currentSong.sections.find(s => currentTime >= s.startTime && currentTime <= s.endTime) : null;
+      const curLabel = activeSec ? activeSec.label : sec.label;
+      chordSyncViewer.updateActiveSection(curLabel, queuedSection ? queuedSection.label : null);
     }
   }
 
@@ -198,8 +203,9 @@ function initApp() {
 
     const activeSec = currentSong.sections.find(sec => currentTime >= sec.startTime && currentTime <= sec.endTime);
     if (activeSec) {
-      chordSyncViewer.updateActiveSection(activeSec.label);
+      chordSyncViewer.updateActiveSection(activeSec.label, queuedSection ? queuedSection.label : null);
     }
+
 
     // Check Section End Transition (Song Switch > Quantized Jump > Section Loop)
     if (audioEngine.isPlaying && activeSec) {

@@ -3,6 +3,7 @@ export class ChordSyncViewer {
     this.container = containerElement;
     this.currentSong = null;
     this.activeSectionLabel = null;
+    this.queuedSectionLabel = null;
     this.transposeOffset = 0;
     this.displayMode = 'chords'; // 'chords' or 'lyrics'
     this.fontScale = 1.0; // 0.7 .. 2.5
@@ -11,6 +12,7 @@ export class ChordSyncViewer {
   setSong(song) {
     this.currentSong = song;
     this.activeSectionLabel = (song && song.sections && song.sections[0]) ? song.sections[0].label : null;
+    this.queuedSectionLabel = null;
     this.render();
   }
 
@@ -32,6 +34,7 @@ export class ChordSyncViewer {
   updateActiveSection(sectionLabel, queuedSectionLabel = null) {
     if (!sectionLabel) return;
     this.activeSectionLabel = sectionLabel;
+    this.queuedSectionLabel = queuedSectionLabel;
 
     if (!this.container) return;
     const contentArea = this.container.querySelector('.chord-content');
@@ -45,30 +48,56 @@ export class ChordSyncViewer {
 
     blocks.forEach((block, idx) => {
       const blockSec = block.dataset.section || '';
-      const isActiveMatch = this._isSectionMatch(blockSec, sectionLabel);
-      const isQueuedMatch = queuedSectionLabel ? this._isSectionMatch(blockSec, queuedSectionLabel) : false;
-
-      block.classList.remove('active-block', 'next-preview-block');
-
-      if (isActiveMatch) {
-        activeIdx = idx;
-      }
-      if (isQueuedMatch) {
-        queuedIdx = idx;
-      }
+      if (this._isSectionMatch(blockSec, sectionLabel)) activeIdx = idx;
+      if (queuedSectionLabel && this._isSectionMatch(blockSec, queuedSectionLabel)) queuedIdx = idx;
     });
 
-    if (activeIdx !== -1) {
-      blocks[activeIdx].classList.add('active-block');
+    if (activeIdx === -1) return;
 
-      // Target for upcoming section preview: explicit queued section or next sequential block
-      const nextIdx = (queuedIdx !== -1) ? queuedIdx : activeIdx + 1;
-      if (nextIdx < blocks.length && nextIdx !== activeIdx) {
-        blocks[nextIdx].classList.add('next-preview-block');
+    if (queuedSectionLabel && queuedIdx !== -1 && queuedIdx !== activeIdx) {
+      // QUEUED JUMP MODE: Show ONLY active section and the target queued section right below it
+      blocks.forEach((block, idx) => {
+        block.classList.remove('active-block', 'next-preview-block', 'queued-jump-preview');
+        if (idx === activeIdx) {
+          block.style.display = '';
+          block.classList.add('active-block');
+        } else if (idx === queuedIdx) {
+          block.style.display = '';
+          block.classList.add('next-preview-block', 'queued-jump-preview');
+        } else {
+          block.style.display = 'none';
+        }
+      });
+
+      // Move queued block immediately after active block for instant side-by-side view
+      const activeEl = blocks[activeIdx];
+      const queuedEl = blocks[queuedIdx];
+      if (activeEl && queuedEl && activeEl.nextSibling !== queuedEl) {
+        activeEl.after(queuedEl);
       }
+    } else {
+      // NORMAL MODE: Restore original song order and display all blocks
+      blocks.sort((a, b) => (parseInt(a.dataset.originalIndex) || 0) - (parseInt(b.dataset.originalIndex) || 0))
+            .forEach(block => contentArea.appendChild(block));
 
-      // Smooth scroll active block directly to the TOP of the viewing window
-      const targetTop = blocks[activeIdx].offsetTop - contentArea.offsetTop - 10;
+      blocks.forEach((block, idx) => {
+        block.style.display = '';
+        block.classList.remove('active-block', 'next-preview-block', 'queued-jump-preview');
+        if (idx === activeIdx) {
+          block.classList.add('active-block');
+        }
+      });
+
+      // Next sequential block gets preview highlight
+      if (activeIdx + 1 < blocks.length) {
+        blocks[activeIdx + 1].classList.add('next-preview-block');
+      }
+    }
+
+    // Smooth scroll active block directly to the TOP of the viewing window
+    const activeEl = blocks[activeIdx];
+    if (activeEl) {
+      const targetTop = activeEl.offsetTop - contentArea.offsetTop - 10;
       contentArea.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
     }
   }
@@ -116,10 +145,11 @@ export class ChordSyncViewer {
       return;
     }
 
-    this.currentSong.chords.forEach(chBlock => {
+    this.currentSong.chords.forEach((chBlock, index) => {
       const blockEl = document.createElement('div');
       blockEl.className = 'chord-section-block';
       blockEl.dataset.section = chBlock.section;
+      blockEl.dataset.originalIndex = index;
 
       let html = `<div class="block-title">${chBlock.section}</div>`;
       chBlock.lines.forEach(line => {
@@ -137,7 +167,7 @@ export class ChordSyncViewer {
     });
 
     if (this.activeSectionLabel) {
-      setTimeout(() => this.updateActiveSection(this.activeSectionLabel), 30);
+      setTimeout(() => this.updateActiveSection(this.activeSectionLabel, this.queuedSectionLabel), 30);
     }
   }
 
