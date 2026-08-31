@@ -436,13 +436,6 @@ function initApp() {
     chordSyncViewer.render();
   });
 
-  // Toggle Chords drawer
-  const toggleChordBtn = document.getElementById('toggleChordBtn');
-  toggleChordBtn.addEventListener('click', () => {
-    chordSyncPanel.classList.toggle('collapsed');
-    toggleChordBtn.classList.toggle('active');
-  });
-
   // Open MIDI Cue Editor
   document.getElementById('editMidiBtn').addEventListener('click', () => {
     midiCueEditor.open();
