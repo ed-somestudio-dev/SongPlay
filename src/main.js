@@ -128,6 +128,17 @@ function initApp() {
   // Wire waveform section click → quantized jump logic
   waveformTimeline.onSectionClick((sec, isShiftKey) => handleSectionClick(sec, isShiftKey));
 
+  // Wire per-section loop toggle
+  let loopedSection = null;
+  waveformTimeline.onSectionLoopToggle((sec) => {
+    if (loopedSection && loopedSection.label === sec.label) {
+      loopedSection = null; // turn off
+    } else {
+      loopedSection = sec;  // turn on for this section
+    }
+    waveformTimeline.setLoopedSection(loopedSection);
+  });
+
   function handleSectionClick(sec, isShiftKey = false) {
     if (isShiftKey || !audioEngine.isPlaying) {
       // Shift+click or paused = IMMEDIATE jump
@@ -158,9 +169,7 @@ function initApp() {
       chordSyncViewer.updateActiveSection(activeSec.label);
     }
 
-    updateSectionBannersUI();
-
-    // Check Section End Transition (Quantized Jump or Loop)
+    // Check Section End Transition (Quantized Jump or Section/Global Loop)
     if (audioEngine.isPlaying && activeSec) {
       const timeUntilEnd = activeSec.endTime - currentTime;
       if (timeUntilEnd <= 0.3 && Math.abs(currentTime - lastHandledTransitionTime) > 1.0) {
@@ -171,7 +180,11 @@ function initApp() {
           queuedSection = null;
           waveformTimeline.setQueuedSection(null);
           audioEngine.seek(target.startTime);
+        } else if (loopedSection && loopedSection.label === activeSec.label) {
+          // Per-section loop
+          audioEngine.seek(activeSec.startTime);
         } else if (isLoopActive) {
+          // Global loop
           audioEngine.seek(activeSec.startTime);
         }
       }
