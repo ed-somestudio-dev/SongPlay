@@ -115,10 +115,20 @@ export class AudioEngine {
   }
 
   async play() {
+    // Lazy-init: Create AudioContext only on first user gesture
     if (!this.ctx) this.init();
-    if (this.ctx.state === 'suspended') {
-      try { await this.ctx.resume(); } catch (e) {}
+
+    // Always try to resume — browsers start ctx as 'suspended'
+    if (this.ctx.state !== 'running') {
+      try { await this.ctx.resume(); } catch (e) { console.warn('ctx.resume failed', e); }
     }
+
+    // Safety: if still not running, abort
+    if (this.ctx.state !== 'running') {
+      console.warn('AudioContext not running, state:', this.ctx.state);
+      return;
+    }
+
     if (this.isPlaying) return;
 
     this.isPlaying = true;

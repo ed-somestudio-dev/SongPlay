@@ -8,9 +8,11 @@ import { MidiCueEditor } from './components/MidiCueEditor.js';
 
 function initApp() {
   // 1. Initialize Audio Engine & Pad Player
+  // NOTE: AudioContext is created lazily on first user interaction (play button click)
+  // to comply with browser autoplay policies.
   const audioEngine = new AudioEngine();
-  audioEngine.init();
-  const padPlayer = new PadPlayer(audioEngine.ctx);
+  // padPlayer is initialized lazily too — first pad click calls padPlayer.init()
+  let padPlayer = null;
 
   // 2. Initialize Setlist Manager
   const setlistContainer = document.getElementById('setlistContainer');
@@ -68,11 +70,9 @@ function initApp() {
 
     // Auto Link Pad if enabled
     const linkChk = document.getElementById('linkSongKeyChk');
-    if (linkChk && linkChk.checked) {
-      if (padPlayer.activeKey) {
-        padPlayer.playKey(song.key);
-        updatePadGridActiveKey(song.key);
-      }
+    if (linkChk && linkChk.checked && padPlayer && padPlayer.activeKey) {
+      padPlayer.playKey(song.key);
+      updatePadGridActiveKey(song.key);
     }
   }
 
@@ -268,6 +268,10 @@ function initApp() {
     if (!btn) return;
     const key = btn.dataset.key;
 
+    if (!padPlayer) {
+      if (!audioEngine.ctx) audioEngine.init();
+      padPlayer = new PadPlayer(audioEngine.ctx);
+    }
     if (!padPlayer.ctx) padPlayer.init(audioEngine.masterGain);
 
     if (padPlayer.activeKey === key) {
@@ -290,7 +294,7 @@ function initApp() {
   }
 
   document.getElementById('stopPadBtn').addEventListener('click', () => {
-    padPlayer.stopKey();
+    if (padPlayer) padPlayer.stopKey();
     updatePadGridActiveKey(null);
     padBtn.classList.remove('active');
   });
