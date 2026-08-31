@@ -41,7 +41,6 @@
     <div class="header-right">
       <button class="transport-btn btn-primary" id="importStemsBtn" style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); color: #000; border: none; font-weight: 700;">+ IMPORTAR STEMS</button>
       <button class="transport-btn" id="editMidiBtn" title="Editar Gatilhos MIDI">EDITAR MIDI</button>
-      <button class="transport-btn active" id="toggleChordBtn" title="Visor de Cifras Sincronizadas">CIFRAS</button>
     </div>
   </header>
 
@@ -56,13 +55,20 @@
       <canvas id="waveformCanvas"></canvas>
     </div>
     <div class="midi-cues-bar">
-      <div class="midi-cue-item">
-        <span class="cue-dot"></span>
-        <span>MIDI: Lyrics (C1)</span>
+      <div class="midi-cues-left">
+        <div class="midi-cue-item">
+          <span class="cue-dot"></span>
+          <span>MIDI: Lyrics (C1)</span>
+        </div>
+        <div class="midi-cue-item">
+          <span class="cue-dot"></span>
+          <span>MIDI: Lights (G1)</span>
+        </div>
       </div>
-      <div class="midi-cue-item">
-        <span class="cue-dot"></span>
-        <span>MIDI: Lights (G1)</span>
+      <div class="view-toggle-group">
+        <button class="view-toggle-btn active" id="btnViewMixer">MIXER</button>
+        <button class="view-toggle-btn" id="btnViewChords">CIFRAS</button>
+        <button class="view-toggle-btn" id="btnViewLyrics">LETRAS</button>
       </div>
     </div>
   </section>

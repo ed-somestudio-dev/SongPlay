@@ -4,10 +4,16 @@ export class ChordSyncViewer {
     this.currentSong = null;
     this.activeSectionLabel = null;
     this.transposeOffset = 0;
+    this.displayMode = 'chords'; // 'chords' or 'lyrics'
   }
 
   setSong(song) {
     this.currentSong = song;
+    this.render();
+  }
+
+  setDisplayMode(mode) {
+    this.displayMode = mode;
     this.render();
   }
 
@@ -35,8 +41,15 @@ export class ChordSyncViewer {
 
     contentArea.innerHTML = '';
 
+    const titleSpan = this.container.querySelector('.panel-title span');
+    if (titleSpan) {
+      titleSpan.innerHTML = this.displayMode === 'lyrics'
+        ? '&#x1F3A4; Letras Sincronizadas'
+        : '&#x1F3B6; Cifras Sincronizadas';
+    }
+
     if (!this.currentSong.chords) {
-      contentArea.innerHTML = `<div class="lyric-line" style="color: var(--text-muted);">Sem cifras disponíveis para esta música.</div>`;
+      contentArea.innerHTML = `<div class="lyric-line" style="color: var(--text-muted);">Sem conteúdo disponível para esta música.</div>`;
       return;
     }
 
@@ -47,11 +60,12 @@ export class ChordSyncViewer {
 
       let html = `<div class="block-title">${chBlock.section}</div>`;
       chBlock.lines.forEach(line => {
-        if (line.chord) {
+        if (this.displayMode === 'chords' && line.chord) {
           html += `<div class="chord-line">${this._transposeChordLine(line.chord, this.transposeOffset)}</div>`;
         }
         if (line.lyric) {
-          html += `<div class="lyric-line">${line.lyric}</div>`;
+          const isLyricsOnly = this.displayMode === 'lyrics';
+          html += `<div class="lyric-line ${isLyricsOnly ? 'large-lyric' : ''}">${line.lyric}</div>`;
         }
       });
 
@@ -67,7 +81,6 @@ export class ChordSyncViewer {
     return chordStr.replace(regex, (match) => {
       let idx = scale.indexOf(match);
       if (idx === -1) {
-        // Fallback for Gb, Db
         if (match === 'Gb') idx = 6;
         if (match === 'Db') idx = 1;
       }

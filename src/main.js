@@ -399,6 +399,33 @@ function initApp() {
   });
 
 
+  // View Toggle Mode (MIXER, CIFRAS, LETRAS)
+  const btnViewMixer = document.getElementById('btnViewMixer');
+  const btnViewChords = document.getElementById('btnViewChords');
+  const btnViewLyrics = document.getElementById('btnViewLyrics');
+
+  function setWorkspaceView(viewMode) {
+    btnViewMixer.classList.toggle('active', viewMode === 'mixer');
+    btnViewChords.classList.toggle('active', viewMode === 'chords');
+    btnViewLyrics.classList.toggle('active', viewMode === 'lyrics');
+
+    if (viewMode === 'mixer') {
+      mixerConsoleContainer.classList.remove('hidden');
+      chordSyncPanel.classList.add('hidden');
+    } else {
+      mixerConsoleContainer.classList.add('hidden');
+      chordSyncPanel.classList.remove('hidden');
+      chordSyncViewer.setDisplayMode(viewMode === 'lyrics' ? 'lyrics' : 'chords');
+    }
+  }
+
+  btnViewMixer.addEventListener('click', () => setWorkspaceView('mixer'));
+  btnViewChords.addEventListener('click', () => setWorkspaceView('chords'));
+  btnViewLyrics.addEventListener('click', () => setWorkspaceView('lyrics'));
+
+  // Default mode: MIXER
+  setWorkspaceView('mixer');
+
   // Transposition buttons for ChordSync
   document.getElementById('transposeUpBtn').addEventListener('click', () => {
     chordSyncViewer.transposeOffset++;
@@ -602,7 +629,11 @@ function initApp() {
     } else if (e.code === 'KeyP') {
       padBtn.click();
     } else if (e.code === 'KeyC') {
-      toggleChordBtn.click();
+      if (btnViewChords.classList.contains('active')) {
+        setWorkspaceView('mixer');
+      } else {
+        setWorkspaceView('chords');
+      }
     } else if (e.code >= 'Digit1' && e.code <= 'Digit9') {
       const idx = parseInt(e.code.replace('Digit', '')) - 1;
       if (currentSong && currentSong.sections && currentSong.sections[idx]) {
