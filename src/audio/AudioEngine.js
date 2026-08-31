@@ -114,10 +114,10 @@ export class AudioEngine {
     this.onStateChangeCallbacks.forEach(cb => cb(this.isPlaying));
   }
 
-  play() {
+  async play() {
     if (!this.ctx) this.init();
     if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      try { await this.ctx.resume(); } catch (e) {}
     }
     if (this.isPlaying) return;
 

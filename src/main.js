@@ -88,13 +88,16 @@ function initApp() {
     });
   }
 
+  let lastActiveSecLabel = null;
+  let lastQueuedSecLabel = null;
+
   function handleSectionClick(sec, isShiftOrOverride = false) {
     if (!audioEngine.isPlaying || isShiftOrOverride) {
       // Immediate jump if paused or shift is held
       queuedSection = null;
       audioEngine.seek(sec.startTime);
       waveformTimeline.render();
-      updateSectionBannersUI();
+      updateSectionBannersUI(true);
       return;
     }
 
@@ -104,15 +107,24 @@ function initApp() {
     } else {
       queuedSection = sec;
     }
-    updateSectionBannersUI();
+    updateSectionBannersUI(true);
   }
 
-  function updateSectionBannersUI() {
+  function updateSectionBannersUI(force = false) {
     const container = document.getElementById('sectionBannersContainer');
     if (!container || !currentSong || !currentSong.sections) return;
 
     const currentTime = audioEngine.currentTime || 0;
     const activeSec = currentSong.sections.find(s => currentTime >= s.startTime && currentTime <= s.endTime);
+    const activeLabel = activeSec ? activeSec.label : null;
+    const queuedLabel = queuedSection ? queuedSection.label : null;
+
+    if (!force && activeLabel === lastActiveSecLabel && queuedLabel === lastQueuedSecLabel) {
+      return;
+    }
+
+    lastActiveSecLabel = activeLabel;
+    lastQueuedSecLabel = queuedLabel;
 
     const tags = container.querySelectorAll('.section-tag');
     tags.forEach((tag, idx) => {
@@ -122,11 +134,11 @@ function initApp() {
       tag.className = `section-tag tag-${sec.label.toLowerCase().replace(/[^a-z]/g, '')}`;
       let text = sec.label;
 
-      if (activeSec && activeSec.label === sec.label) {
+      if (activeLabel === sec.label) {
         tag.classList.add('active-section');
       }
 
-      if (queuedSection && queuedSection.label === sec.label) {
+      if (queuedLabel === sec.label) {
         tag.classList.add('queued-jump');
         text = `⏳ PRÓXIMO: ${sec.label}`;
       }
@@ -152,7 +164,7 @@ function initApp() {
 
       container.appendChild(tag);
     });
-    updateSectionBannersUI();
+    updateSectionBannersUI(true);
   }
 
   // Audio Engine Time Update Subscription
