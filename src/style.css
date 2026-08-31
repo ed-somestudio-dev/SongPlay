@@ -828,7 +828,7 @@ body {
 }
 
 .block-title {
-  font-size: 0.75rem;
+  font-size: calc(0.8rem * var(--chord-font-scale, 1));
   font-weight: 800;
   text-transform: uppercase;
   color: var(--accent-green);
@@ -839,15 +839,24 @@ body {
   font-family: var(--font-mono);
   font-weight: 700;
   color: var(--accent-amber);
-  font-size: 0.95rem;
+  font-size: calc(1.05rem * var(--chord-font-scale, 1));
   margin-top: 4px;
+  letter-spacing: 0.5px;
 }
 
 .lyric-line {
   color: var(--text-main);
-  font-size: 0.9rem;
+  font-size: calc(0.95rem * var(--chord-font-scale, 1));
   margin-bottom: 8px;
 }
+
+.lyric-line.large-lyric {
+  font-size: calc(1.3rem * var(--chord-font-scale, 1));
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 2;
+}
+
 
 /* Modals System */
 .modal-overlay {

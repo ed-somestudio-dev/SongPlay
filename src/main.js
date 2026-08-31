@@ -436,6 +436,14 @@ function initApp() {
     chordSyncViewer.render();
   });
 
+  // Font Size Zoom buttons for ChordSync / Lyrics
+  document.getElementById('fontSizeUpBtn').addEventListener('click', () => {
+    chordSyncViewer.zoomIn();
+  });
+  document.getElementById('fontSizeDownBtn').addEventListener('click', () => {
+    chordSyncViewer.zoomOut();
+  });
+
   // Open MIDI Cue Editor
   document.getElementById('editMidiBtn').addEventListener('click', () => {
     midiCueEditor.open();

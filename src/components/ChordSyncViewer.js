@@ -5,6 +5,7 @@ export class ChordSyncViewer {
     this.activeSectionLabel = null;
     this.transposeOffset = 0;
     this.displayMode = 'chords'; // 'chords' or 'lyrics'
+    this.fontScale = 1.0; // 0.7 .. 2.5
   }
 
   setSong(song) {
@@ -14,6 +15,16 @@ export class ChordSyncViewer {
 
   setDisplayMode(mode) {
     this.displayMode = mode;
+    this.render();
+  }
+
+  zoomIn() {
+    this.fontScale = Math.min(2.5, +(this.fontScale + 0.15).toFixed(2));
+    this.render();
+  }
+
+  zoomOut() {
+    this.fontScale = Math.max(0.7, +(this.fontScale - 0.15).toFixed(2));
     this.render();
   }
 
@@ -40,6 +51,7 @@ export class ChordSyncViewer {
     if (!contentArea) return;
 
     contentArea.innerHTML = '';
+    contentArea.style.setProperty('--chord-font-scale', this.fontScale);
 
     const titleSpan = this.container.querySelector('.panel-title span');
     if (titleSpan) {
