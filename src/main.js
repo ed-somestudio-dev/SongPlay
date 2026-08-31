@@ -68,6 +68,13 @@ function initApp() {
     console.log('MIDI Cue Updated:', cue);
   });
 
+  // ── State variables declared here (before loadSong) to avoid TDZ errors ──
+  let queuedSection = null;
+  let isLoopActive = false;
+  let lastHandledTransitionTime = -1;
+  let lastActiveSecLabel = null;
+  let lastQueuedSecLabel = null;
+
   // Load initial song
   currentSong = setlistManager.getActiveSong();
   loadSong(currentSong);
@@ -102,10 +109,6 @@ function initApp() {
     }
   }
 
-  let queuedSection = null;
-  let isLoopActive = false;
-  let lastHandledTransitionTime = -1;
-
   const loopBtn = document.getElementById('loopBtn');
   if (loopBtn) {
     loopBtn.addEventListener('click', () => {
@@ -121,10 +124,8 @@ function initApp() {
     }
   });
 
-  let lastActiveSecLabel = null;
-  let lastQueuedSecLabel = null;
-
   function handleSectionClick(sec, isAltKey = false) {
+
     if (isAltKey && audioEngine.isPlaying) {
       // Alt + Click queues jump for section end
       if (queuedSection && queuedSection.label === sec.label) {
