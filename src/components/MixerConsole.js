@@ -38,6 +38,7 @@ export class MixerConsole {
     });
 
     // Render Master Channel Strip
+    const masterVol = this.audioEngine.masterGain ? this.audioEngine.masterGain.gain.value : 0.9;
     const masterStrip = document.createElement('div');
     masterStrip.className = 'channel-strip master-strip';
     masterStrip.innerHTML = `
@@ -47,13 +48,13 @@ export class MixerConsole {
       </div>
       <div class="fader-area">
         <div class="fader-track">
-          <input type="range" min="0" max="1" step="0.01" value="0.9" class="vertical-range" id="masterFader">
+          <input type="range" min="0" max="1" step="0.01" value="${masterVol}" class="vertical-range" id="masterFader">
         </div>
         <div class="vu-meter" id="vu-master">
           ${Array.from({ length: 10 }).map((_, i) => `<div class="vu-led" data-led="${i}"></div>`).join('')}
         </div>
       </div>
-      <div class="channel-volume-text" id="vol-txt-master">90%</div>
+      <div class="channel-volume-text" id="vol-txt-master">${Math.round(masterVol * 100)}%</div>
     `;
     this.container.appendChild(masterStrip);
 
@@ -62,6 +63,16 @@ export class MixerConsole {
       this.eventsBound = true;
     }
     this._startVUMeterAnimation();
+  }
+
+  onMixChange(cb) {
+    this.onMixChangeCallback = cb;
+  }
+
+  _notifyMixChange() {
+    if (this.onMixChangeCallback) {
+      this.onMixChangeCallback();
+    }
   }
 
   updateButtonsState() {
@@ -82,11 +93,13 @@ export class MixerConsole {
         this.audioEngine.setTrackVolume(trackId, val);
         const txt = this.container.querySelector(`#vol-txt-${trackId}`);
         if (txt) txt.textContent = `${Math.round(val * 100)}%`;
+        this._notifyMixChange();
       } else if (e.target.id === 'masterFader') {
         const val = parseFloat(e.target.value);
         this.audioEngine.setMasterVolume(val);
         const txt = this.container.querySelector('#vol-txt-master');
         if (txt) txt.textContent = `${Math.round(val * 100)}%`;
+        this._notifyMixChange();
       }
     });
 
@@ -99,13 +112,16 @@ export class MixerConsole {
       if (action === 'solo' && trackId) {
         this.audioEngine.toggleSolo(trackId);
         this.updateButtonsState();
+        this._notifyMixChange();
       } else if (action === 'mute' && trackId) {
         this.audioEngine.toggleMute(trackId);
         this.updateButtonsState();
+        this._notifyMixChange();
       } else if (btn.id === 'masterMuteBtn') {
         btn.classList.toggle('active');
         const isMuted = btn.classList.contains('active');
         this.audioEngine.setMasterVolume(isMuted ? 0 : 0.9);
+        this._notifyMixChange();
       }
     });
   }

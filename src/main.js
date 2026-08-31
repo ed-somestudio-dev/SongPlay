@@ -58,6 +58,12 @@ function initApp() {
   const mixerConsole = new MixerConsole(mixerConsoleContainer, audioEngine);
   mixerConsole.render();
 
+  mixerConsole.onMixChange(() => {
+    if (currentSong) {
+      currentSong.mixState = audioEngine.getMixState();
+    }
+  });
+
   // 5. Initialize Chord Sync Viewer
   const chordSyncPanel = document.getElementById('chordSyncPanel');
   const chordSyncViewer = new ChordSyncViewer(chordSyncPanel);
@@ -88,6 +94,14 @@ function initApp() {
     audioEngine.timeSignature = song.timeSignature;
     audioEngine.duration = song.duration;
     audioEngine.seek(0);
+
+    // Restore or initialize custom mix settings for this song
+    if (song.mixState) {
+      audioEngine.applyMixState(song.mixState);
+    } else {
+      song.mixState = audioEngine.getMixState();
+    }
+    mixerConsole.render();
 
     // Update Header Display
     document.getElementById('hdrBpm').textContent = `${song.bpm} BPM`;

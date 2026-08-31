@@ -227,6 +227,44 @@ export class AudioEngine {
     }
   }
 
+  getMixState() {
+    const channelsState = {};
+    Object.keys(this.channels).forEach(trackId => {
+      const ch = this.channels[trackId];
+      channelsState[trackId] = {
+        volume: ch.volume,
+        isMuted: ch.isMuted,
+        isSolo: ch.isSolo,
+      };
+    });
+    return {
+      channels: channelsState,
+      masterVolume: this.masterGain ? this.masterGain.gain.value : 0.9,
+    };
+  }
+
+  applyMixState(mixState) {
+    if (!mixState) return;
+
+    if (mixState.channels) {
+      Object.keys(mixState.channels).forEach(trackId => {
+        if (this.channels[trackId]) {
+          const state = mixState.channels[trackId];
+          if (typeof state.volume === 'number') this.channels[trackId].volume = state.volume;
+          if (typeof state.isMuted === 'boolean') this.channels[trackId].isMuted = state.isMuted;
+          if (typeof state.isSolo === 'boolean') this.channels[trackId].isSolo = state.isSolo;
+        }
+      });
+    }
+
+    this.soloActive = Object.values(this.channels).some(ch => ch.isSolo);
+    this._updateChannelGains();
+
+    if (typeof mixState.masterVolume === 'number' && this.masterGain) {
+      this.masterGain.gain.value = mixState.masterVolume;
+    }
+  }
+
   onTimeUpdate(callback) {
     this.onTimeUpdateCallbacks.push(callback);
   }
