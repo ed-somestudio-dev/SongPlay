@@ -346,22 +346,28 @@ export class WaveformTimeline {
       if (clickedSection && this.onSectionClickCallback) {
         this.onSectionClickCallback(clickedSection, e.shiftKey);
       } else {
-        // 3. Free scrub — no section hit
-        this.audioEngine.seek(targetTime);
       }
     });
 
-    this.canvas.addEventListener('mousemove', (e) => {
-      if (e.buttons === 1) {
-        const targetTime = getTimeFromEvent(e);
-        this.audioEngine.seek(targetTime);
-      }
-    });
-
-    // Touch support
+    // Touch support (tap only)
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const touch = e.touches[0];
+      const pos = getCanvasPos({ clientX: touch.clientX, clientY: touch.clientY });
+
+      // 1. Check loop icon hit
+      const loopHit = this._loopIconAreas.find(
+        area => pos.x >= area.x && pos.x <= area.x + area.w &&
+                pos.y >= area.y && pos.y <= area.y + area.h
+      );
+      if (loopHit) {
+        if (this.onSectionLoopToggleCallback) {
+          this.onSectionLoopToggleCallback(loopHit.sec);
+        }
+        return;
+      }
+
+      // 2. Check section block click
       const targetTime = getTimeFromEvent({ clientX: touch.clientX });
       const clickedSection = this.sections.find(
         sec => targetTime >= sec.startTime && targetTime <= sec.endTime
@@ -371,12 +377,6 @@ export class WaveformTimeline {
       } else {
         this.audioEngine.seek(targetTime);
       }
-    }, { passive: false });
-
-    this.canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      this.audioEngine.seek(getTimeFromEvent({ clientX: touch.clientX }));
     }, { passive: false });
   }
 }
