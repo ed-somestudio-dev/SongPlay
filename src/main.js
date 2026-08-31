@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadSong(song) {
     currentSong = song;
+    if (!song.id || !song.id.startsWith('custom_')) {
+      audioEngine.clearAudioBuffers();
+    }
     audioEngine.bpm = song.bpm;
     audioEngine.timeSignature = song.timeSignature;
     audioEngine.duration = song.duration;
@@ -227,7 +230,10 @@ document.addEventListener('DOMContentLoaded', () => {
   importBtn.addEventListener('click', () => importModal.classList.add('open'));
   closeImportBtn.addEventListener('click', () => importModal.classList.remove('open'));
 
-  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('click', () => {
+    fileInput.value = '';
+    fileInput.click();
+  });
 
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();

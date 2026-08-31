@@ -68,6 +68,9 @@ export class AudioEngine {
 
   async decodeFile(file) {
     if (!this.ctx) this.init();
+    if (this.ctx.state === 'suspended') {
+      try { await this.ctx.resume(); } catch (e) {}
+    }
     const arrayBuffer = await file.arrayBuffer();
     return await this.ctx.decodeAudioData(arrayBuffer);
   }
