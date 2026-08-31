@@ -33,14 +33,25 @@ export class AudioEngine {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     this.ctx = new AudioCtx();
 
-    this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = 0.9;
-    this.masterGain.connect(this.ctx.destination);
+    // Per-song Master Gain node
+    this.songMasterGain = this.ctx.createGain();
+    this.songMasterGain.gain.value = 0.9;
+    this.masterGain = this.songMasterGain; // alias for backward compatibility
+
+    // Global Device Master Gain node (persists across song changes)
+    const savedGlobalVol = parseFloat(localStorage.getItem('songplay_global_master_vol'));
+    const initialGlobalVol = isNaN(savedGlobalVol) ? 1.0 : savedGlobalVol;
+
+    this.globalMasterGain = this.ctx.createGain();
+    this.globalMasterGain.gain.value = initialGlobalVol;
+
+    this.songMasterGain.connect(this.globalMasterGain);
+    this.globalMasterGain.connect(this.ctx.destination);
 
     this.masterAnalyser = this.ctx.createAnalyser();
     this.masterAnalyser.fftSize = 256;
     this.masterAnalyser.smoothingTimeConstant = 0.6;
-    this.masterGain.connect(this.masterAnalyser);
+    this.globalMasterGain.connect(this.masterAnalyser);
 
     // Setup channel nodes
     this.trackNames.forEach(track => {
@@ -221,9 +232,22 @@ export class AudioEngine {
     this._updateChannelGains();
   }
 
+  setSongMasterVolume(volume) {
+    if (this.songMasterGain) {
+      this.songMasterGain.gain.value = volume;
+    }
+  }
+
   setMasterVolume(volume) {
-    if (this.masterGain) {
-      this.masterGain.gain.value = volume;
+    this.setSongMasterVolume(volume);
+  }
+
+  setGlobalMasterVolume(volume) {
+    if (this.globalMasterGain) {
+      this.globalMasterGain.gain.value = volume;
+      try {
+        localStorage.setItem('songplay_global_master_vol', volume);
+      } catch (e) {}
     }
   }
 
@@ -239,7 +263,7 @@ export class AudioEngine {
     });
     return {
       channels: channelsState,
-      masterVolume: this.masterGain ? this.masterGain.gain.value : 0.9,
+      songMasterVolume: this.songMasterGain ? this.songMasterGain.gain.value : 0.9,
     };
   }
 
@@ -260,8 +284,12 @@ export class AudioEngine {
     this.soloActive = Object.values(this.channels).some(ch => ch.isSolo);
     this._updateChannelGains();
 
-    if (typeof mixState.masterVolume === 'number' && this.masterGain) {
-      this.masterGain.gain.value = mixState.masterVolume;
+    const songVol = typeof mixState.songMasterVolume === 'number'
+      ? mixState.songMasterVolume
+      : (typeof mixState.masterVolume === 'number' ? mixState.masterVolume : 0.9);
+
+    if (this.songMasterGain) {
+      this.songMasterGain.gain.value = songVol;
     }
   }
 

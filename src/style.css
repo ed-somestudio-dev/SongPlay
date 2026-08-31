@@ -433,6 +433,13 @@ body {
   flex: 0 0 96px;
 }
 
+.channel-strip.global-master-strip {
+  background: #1c182b;
+  border-color: var(--accent-purple);
+  width: 96px;
+  flex: 0 0 96px;
+}
+
 .channel-header {
   font-size: 0.72rem;
   font-weight: 700;
@@ -448,6 +455,10 @@ body {
 
 .channel-strip.master-strip .channel-header {
   color: var(--accent-amber);
+}
+
+.channel-strip.global-master-strip .channel-header {
+  color: var(--accent-purple);
 }
 
 .channel-controls {

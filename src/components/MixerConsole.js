@@ -37,26 +37,47 @@ export class MixerConsole {
       this.container.appendChild(stripEl);
     });
 
-    // Render Master Channel Strip
-    const masterVol = this.audioEngine.masterGain ? this.audioEngine.masterGain.gain.value : 0.9;
-    const masterStrip = document.createElement('div');
-    masterStrip.className = 'channel-strip master-strip';
-    masterStrip.innerHTML = `
-      <div class="channel-header">MASTER</div>
+    // 1. Render Song Master Channel Strip (saved per song)
+    const songMasterVol = this.audioEngine.songMasterGain ? this.audioEngine.songMasterGain.gain.value : 0.9;
+    const songMasterStrip = document.createElement('div');
+    songMasterStrip.className = 'channel-strip master-strip';
+    songMasterStrip.innerHTML = `
+      <div class="channel-header" title="Master da Música">MÚSICA</div>
       <div class="channel-controls">
         <button class="sm-btn mute-btn" id="masterMuteBtn">M</button>
       </div>
       <div class="fader-area">
         <div class="fader-track">
-          <input type="range" min="0" max="1" step="0.01" value="${masterVol}" class="vertical-range" id="masterFader">
+          <input type="range" min="0" max="1" step="0.01" value="${songMasterVol}" class="vertical-range" id="masterFader">
         </div>
         <div class="vu-meter" id="vu-master">
           ${Array.from({ length: 10 }).map((_, i) => `<div class="vu-led" data-led="${i}"></div>`).join('')}
         </div>
       </div>
-      <div class="channel-volume-text" id="vol-txt-master">${Math.round(masterVol * 100)}%</div>
+      <div class="channel-volume-text" id="vol-txt-master">${Math.round(songMasterVol * 100)}%</div>
     `;
-    this.container.appendChild(masterStrip);
+    this.container.appendChild(songMasterStrip);
+
+    // 2. Render Global Device Master Strip (persistent across all songs)
+    const globalMasterVol = this.audioEngine.globalMasterGain ? this.audioEngine.globalMasterGain.gain.value : 1.0;
+    const globalMasterStrip = document.createElement('div');
+    globalMasterStrip.className = 'channel-strip global-master-strip';
+    globalMasterStrip.innerHTML = `
+      <div class="channel-header" title="Master Geral do Dispositivo">MAIN GERAL</div>
+      <div class="channel-controls">
+        <button class="sm-btn mute-btn" id="globalMasterMuteBtn">M</button>
+      </div>
+      <div class="fader-area">
+        <div class="fader-track">
+          <input type="range" min="0" max="1" step="0.01" value="${globalMasterVol}" class="vertical-range" id="globalMasterFader">
+        </div>
+        <div class="vu-meter" id="vu-global-master">
+          ${Array.from({ length: 10 }).map((_, i) => `<div class="vu-led" data-led="${i}"></div>`).join('')}
+        </div>
+      </div>
+      <div class="channel-volume-text" id="vol-txt-global-master">${Math.round(globalMasterVol * 100)}%</div>
+    `;
+    this.container.appendChild(globalMasterStrip);
 
     if (!this.eventsBound) {
       this._bindEvents();
@@ -96,10 +117,15 @@ export class MixerConsole {
         this._notifyMixChange();
       } else if (e.target.id === 'masterFader') {
         const val = parseFloat(e.target.value);
-        this.audioEngine.setMasterVolume(val);
+        this.audioEngine.setSongMasterVolume(val);
         const txt = this.container.querySelector('#vol-txt-master');
         if (txt) txt.textContent = `${Math.round(val * 100)}%`;
         this._notifyMixChange();
+      } else if (e.target.id === 'globalMasterFader') {
+        const val = parseFloat(e.target.value);
+        this.audioEngine.setGlobalMasterVolume(val);
+        const txt = this.container.querySelector('#vol-txt-global-master');
+        if (txt) txt.textContent = `${Math.round(val * 100)}%`;
       }
     });
 
@@ -120,8 +146,12 @@ export class MixerConsole {
       } else if (btn.id === 'masterMuteBtn') {
         btn.classList.toggle('active');
         const isMuted = btn.classList.contains('active');
-        this.audioEngine.setMasterVolume(isMuted ? 0 : 0.9);
+        this.audioEngine.setSongMasterVolume(isMuted ? 0 : 0.9);
         this._notifyMixChange();
+      } else if (btn.id === 'globalMasterMuteBtn') {
+        btn.classList.toggle('active');
+        const isMuted = btn.classList.contains('active');
+        this.audioEngine.setGlobalMasterVolume(isMuted ? 0 : 1.0);
       }
     });
   }
