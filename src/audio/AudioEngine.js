@@ -38,7 +38,8 @@ export class AudioEngine {
     this.masterGain.connect(this.ctx.destination);
 
     this.masterAnalyser = this.ctx.createAnalyser();
-    this.masterAnalyser.fftSize = 64;
+    this.masterAnalyser.fftSize = 256;
+    this.masterAnalyser.smoothingTimeConstant = 0.6;
     this.masterGain.connect(this.masterAnalyser);
 
     // Setup channel nodes
@@ -47,7 +48,8 @@ export class AudioEngine {
       gainNode.gain.value = track.defaultVol;
 
       const analyserNode = this.ctx.createAnalyser();
-      analyserNode.fftSize = 64;
+      analyserNode.fftSize = 256; // More samples → better time-domain resolution
+      analyserNode.smoothingTimeConstant = 0.6; // Smooth meter needle movement
 
       gainNode.connect(analyserNode);
       analyserNode.connect(this.masterGain);
@@ -232,27 +234,32 @@ export class AudioEngine {
   getChannelMeterLevel(trackId) {
     if (!this.channels[trackId] || !this.isPlaying) return 0;
     const analyser = this.channels[trackId].analyserNode;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(dataArray);
+
+    // Use time-domain RMS for accurate level metering across all frequencies
+    const dataArray = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(dataArray);
 
     let sum = 0;
     for (let i = 0; i < dataArray.length; i++) {
-      sum += dataArray[i];
+      sum += dataArray[i] * dataArray[i];
     }
-    const avg = sum / dataArray.length;
-    // Scale 0 - 100
-    return Math.min(100, Math.round((avg / 128) * 100));
+    const rms = Math.sqrt(sum / dataArray.length);
+    // rms is 0.0–1.0; scale to 0–100 with some headroom
+    return Math.min(100, Math.round(rms * 300));
   }
 
   getMasterMeterLevel() {
     if (!this.masterAnalyser || !this.isPlaying) return 0;
-    const dataArray = new Uint8Array(this.masterAnalyser.frequencyBinCount);
-    this.masterAnalyser.getByteFrequencyData(dataArray);
+
+    const dataArray = new Float32Array(this.masterAnalyser.fftSize);
+    this.masterAnalyser.getFloatTimeDomainData(dataArray);
+
     let sum = 0;
     for (let i = 0; i < dataArray.length; i++) {
-      sum += dataArray[i];
+      sum += dataArray[i] * dataArray[i];
     }
-    return Math.min(100, Math.round((sum / dataArray.length / 128) * 100));
+    const rms = Math.sqrt(sum / dataArray.length);
+    return Math.min(100, Math.round(rms * 300));
   }
 
   _updateChannelGains() {
