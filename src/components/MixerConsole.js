@@ -86,7 +86,7 @@ export class MixerConsole {
     const globalMasterStrip = document.createElement('div');
     globalMasterStrip.className = 'channel-strip global-master-strip';
     globalMasterStrip.innerHTML = `
-      <div class="channel-header" title="Master Geral do Dispositivo (Saída Main)">MAIN GERAL</div>
+      <div class="channel-header" title="Master Geral do Dispositivo (Saída Main)">MAIN</div>
       <div class="channel-controls">
         <button class="sm-btn mute-btn" id="globalMasterMuteBtn">M</button>
       </div>
