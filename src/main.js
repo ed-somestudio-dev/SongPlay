@@ -202,15 +202,21 @@ function initApp() {
   const playPauseBtn = document.getElementById('playPauseBtn');
   const playIcon = document.getElementById('playIcon');
 
+  audioEngine.onStateChange((isPlaying) => {
+    if (isPlaying) {
+      playIcon.innerHTML = '&#x23F8; PAUSE';
+      playPauseBtn.classList.add('btn-primary');
+    } else {
+      playIcon.innerHTML = '&#x25B6; PLAY';
+      playPauseBtn.classList.remove('btn-primary');
+    }
+  });
+
   playPauseBtn.addEventListener('click', () => {
     if (audioEngine.isPlaying) {
       audioEngine.pause();
-      playIcon.innerHTML = '&#x25B6; PLAY';
-      playPauseBtn.classList.remove('btn-primary');
     } else {
       audioEngine.play();
-      playIcon.innerHTML = '&#x23F8; PAUSE';
-      playPauseBtn.classList.add('btn-primary');
     }
   });
 

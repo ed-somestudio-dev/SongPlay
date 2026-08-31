@@ -10,6 +10,7 @@ export class AudioEngine {
     this.channels = {};
     this.soloActive = false;
     this.onTimeUpdateCallbacks = [];
+    this.onStateChangeCallbacks = [];
     this.animationFrame = null;
     this.startTime = 0;
     this.pauseOffset = 0;
@@ -105,6 +106,14 @@ export class AudioEngine {
     return Object.values(this.channels).some(ch => ch.audioBuffer !== null);
   }
 
+  onStateChange(callback) {
+    this.onStateChangeCallbacks.push(callback);
+  }
+
+  _notifyStateChange() {
+    this.onStateChangeCallbacks.forEach(cb => cb(this.isPlaying));
+  }
+
   play() {
     if (!this.ctx) this.init();
     if (this.ctx.state === 'suspended') {
@@ -118,17 +127,20 @@ export class AudioEngine {
     // Start AudioBuffer Sources for loaded stems
     this._startBufferSources(this.pauseOffset);
 
+    this._notifyStateChange();
     this._startPlaybackLoop();
   }
 
   pause() {
     if (!this.isPlaying) return;
     this.isPlaying = false;
-    this.pauseOffset = this.ctx.currentTime - this.startTime;
+    this.pauseOffset = Math.max(0, Math.min(this.currentTime, this.duration));
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
     }
     this._stopBufferSources();
+    this._notifyStateChange();
   }
 
   seek(seconds) {
@@ -252,8 +264,8 @@ export class AudioEngine {
       this.currentTime = this.ctx.currentTime - this.startTime;
 
       if (this.currentTime >= this.duration) {
-        this.seek(0);
         this.pause();
+        this.seek(0);
         return;
       }
 
