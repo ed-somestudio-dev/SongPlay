@@ -24,7 +24,7 @@ export class AudioEngine {
       { id: 'guitar1', label: 'Guitar 1', defaultVol: 0.75 },
       { id: 'guitar2', label: 'Guitar 2', defaultVol: 0.7 },
       { id: 'keys', label: 'Teclas', defaultVol: 0.8 },
-      { id: 'pad', label: 'Pad Track', defaultVol: 0.65 }
+      { id: 'pad', label: 'Pad', defaultVol: 0.65 }
     ];
   }
 

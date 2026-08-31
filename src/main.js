@@ -289,12 +289,22 @@ function initApp() {
 
   closePadBtn.addEventListener('click', () => padModal.classList.remove('open'));
 
+  function getPadDestinationNode() {
+    if (audioEngine.channels && audioEngine.channels['pad'] && audioEngine.channels['pad'].gainNode) {
+      return audioEngine.channels['pad'].gainNode;
+    }
+    return audioEngine.songMasterGain || audioEngine.masterGain;
+  }
+
   function ensurePadPlayer() {
     if (!padPlayer) {
       if (!audioEngine.ctx) audioEngine.init();
       padPlayer = new PadPlayer(audioEngine.ctx);
     }
-    if (!padPlayer.ctx) padPlayer.init(audioEngine.masterGain);
+    const dest = getPadDestinationNode();
+    if (!padPlayer.ctx || !padPlayer.padGainNode) {
+      padPlayer.init(dest, audioEngine.ctx);
+    }
     return padPlayer;
   }
 
@@ -306,7 +316,7 @@ function initApp() {
       padBtn.classList.remove('active');
     } else {
       const targetKey = (currentSong && currentSong.key) ? currentSong.key : 'C';
-      player.playKey(targetKey, audioEngine.masterGain, audioEngine.ctx);
+      player.playKey(targetKey, getPadDestinationNode(), audioEngine.ctx);
       updatePadGridActiveKey(targetKey);
       padBtn.classList.add('active');
     }
@@ -363,7 +373,7 @@ function initApp() {
       updatePadGridActiveKey(null);
       padBtn.classList.remove('active');
     } else {
-      player.playKey(key, audioEngine.masterGain, audioEngine.ctx);
+      player.playKey(key, getPadDestinationNode(), audioEngine.ctx);
       updatePadGridActiveKey(key);
       padBtn.classList.add('active');
     }
