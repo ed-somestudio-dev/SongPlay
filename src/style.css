@@ -484,7 +484,9 @@ body {
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
-/* Fader & VU Meter Track */
+/* ─── Professional Mixer Fader ──────────────────────────────────────────── */
+
+/* Fader & VU Meter Track container */
 .fader-area {
   flex: 1;
   width: 100%;
@@ -496,28 +498,169 @@ body {
   position: relative;
 }
 
-/* Vertical Range Slider Custom Fader */
 .fader-track {
   height: 100%;
-  width: 24px;
+  width: 28px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.vertical-range {
-  writing-mode: bt-lr; /* IE/Edge */
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
-  width: 20px;
-  height: 100%;
-  background: transparent;
-  cursor: pointer;
-  outline: none;
+/* Fader rail (the groove the cap slides in) */
+.fader-track::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  bottom: 6px;
+  transform: translateX(-50%);
+  width: 4px;
+  background: linear-gradient(to bottom, #0a0c10, #1a1f2e, #0a0c10);
+  border-radius: 2px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 0 1px #000;
+  pointer-events: none;
 }
 
-/* VU Meter LEDs */
+/* Center unity (0 dB) mark on the rail */
+.fader-track::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 25%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 1px;
+  background: var(--accent-green);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* The actual range input — takes full height, transparent so our pseudo fader shows */
+.vertical-range {
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 28px;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+  outline: none;
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  margin: 0;
+}
+
+.vertical-range:active {
+  cursor: grabbing;
+}
+
+/* ── Suppress browser default track fill (the blue line) ─────────────────── */
+.vertical-range::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+  width: 4px;
+}
+
+.vertical-range::-webkit-slider-container {
+  background: transparent;
+}
+
+/* ── Webkit Fader Cap (Chrome, Safari, Edge) ─────────────────────────────── */
+.vertical-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 18px;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 4px,
+      rgba(255,255,255,0.18) 4px,
+      rgba(255,255,255,0.18) 5px,
+      transparent 5px,
+      transparent 9px,
+      rgba(255,255,255,0.18) 9px,
+      rgba(255,255,255,0.18) 10px,
+      transparent 10px,
+      transparent 14px,
+      rgba(255,255,255,0.18) 14px,
+      rgba(255,255,255,0.18) 15px
+    ),
+    linear-gradient(180deg,
+      #48506a 0%,
+      #363c52 20%,
+      #2a2f42 45%,
+      #363c52 70%,
+      #48506a 100%
+    );
+  background-size: 100% 18px, 100% 100%;
+  border: 1px solid #5a6080;
+  border-top: 1px solid #6a7090;
+  border-bottom: 1px solid #252a3a;
+  border-radius: 3px;
+  box-shadow:
+    0 -1px 0 rgba(255,255,255,0.2),
+    0 3px 8px rgba(0,0,0,0.8),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  cursor: grab;
+  transition: border-color 0.1s ease, box-shadow 0.1s ease;
+  margin-left: -2px;
+}
+
+.vertical-range::-webkit-slider-thumb:hover {
+  border-color: var(--accent-cyan);
+  box-shadow:
+    0 -1px 0 rgba(255,255,255,0.25),
+    0 3px 12px rgba(0, 200, 255, 0.3),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.vertical-range::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  border-color: var(--accent-green);
+  box-shadow:
+    0 0 0 2px rgba(0, 230, 118, 0.35),
+    0 2px 8px rgba(0,0,0,0.9);
+}
+
+/* ── Firefox Fader Cap ────────────────────────────────────────────────────── */
+.vertical-range::-moz-range-thumb {
+  width: 32px;
+  height: 18px;
+  background: linear-gradient(180deg,
+    #48506a 0%,
+    #363c52 25%,
+    #2a2f42 50%,
+    #363c52 75%,
+    #48506a 100%
+  );
+  border: 1px solid #5a6080;
+  border-radius: 3px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.8);
+  cursor: grab;
+}
+
+.vertical-range::-moz-range-thumb:hover {
+  border-color: var(--accent-cyan);
+}
+
+.vertical-range::-moz-range-thumb:active {
+  cursor: grabbing;
+  border-color: var(--accent-green);
+}
+
+/* Firefox — hide the default progress fill */
+.vertical-range::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+/* ─── VU Meter LEDs ────────────────────────────────────────────────────────── */
+
 .vu-meter {
   width: 10px;
   height: 100%;
