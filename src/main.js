@@ -212,6 +212,174 @@ document.addEventListener('DOMContentLoaded', () => {
     midiCueEditor.open();
   });
 
+  // Stem Import Modal & Dropzone Logic
+  const importModal = document.getElementById('importStemsModal');
+  const importBtn = document.getElementById('importStemsBtn');
+  const closeImportBtn = document.getElementById('closeImportModalBtn');
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileMappingList = document.getElementById('fileMappingList');
+  const confirmImportBtn = document.getElementById('confirmImportBtn');
+  const importProgress = document.getElementById('importProgress');
+
+  let selectedFilesMap = []; // { file, trackId }
+
+  importBtn.addEventListener('click', () => importModal.classList.add('open'));
+  closeImportBtn.addEventListener('click', () => importModal.classList.remove('open'));
+
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.style.borderColor = 'var(--accent-green)';
+    dropzone.style.background = '#1a2333';
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.style.borderColor = 'var(--border-active)';
+    dropzone.style.background = 'var(--bg-card)';
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.style.borderColor = 'var(--border-active)';
+    dropzone.style.background = 'var(--bg-card)';
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleSelectedFiles(Array.from(e.dataTransfer.files));
+    }
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleSelectedFiles(Array.from(e.target.files));
+    }
+  });
+
+  function autoDetectTrackId(filename) {
+    const name = filename.toLowerCase();
+    if (name.includes('click') || name.includes('metronomo')) return 'click';
+    if (name.includes('guia') || name.includes('guide') || name.includes('voice')) return 'guide';
+    if (name.includes('bateria') || name.includes('drums') || name.includes('perc')) return 'drums';
+    if (name.includes('baixo') || name.includes('bass')) return 'bass';
+    if (name.includes('guitar1') || name.includes('gtr1') || name.includes('violao')) return 'guitar1';
+    if (name.includes('guitar') || name.includes('gtr')) return 'guitar2';
+    if (name.includes('teclado') || name.includes('keys') || name.includes('piano')) return 'keys';
+    if (name.includes('pad')) return 'pad';
+    return 'guitar1'; // default fallback
+  }
+
+  function handleSelectedFiles(files) {
+    selectedFilesMap = files.map(file => ({
+      file,
+      trackId: autoDetectTrackId(file.name)
+    }));
+
+    // Auto-fill song title if empty
+    const titleInput = document.getElementById('importSongTitle');
+    if (!titleInput.value && files.length > 0) {
+      const cleanName = files[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      titleInput.value = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    }
+
+    renderFileMappingList();
+  }
+
+  function renderFileMappingList() {
+    fileMappingList.innerHTML = '';
+    selectedFilesMap.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 0.82rem;';
+      
+      const trackOptionsHtml = audioEngine.trackNames.map(tr => 
+        `<option value="${tr.id}" ${tr.id === item.trackId ? 'selected' : ''}>${tr.label}</option>`
+      ).join('');
+
+      row.innerHTML = `
+        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; color: var(--text-main);" title="${item.file.name}">${item.file.name}</span>
+        <select data-idx="${idx}" class="track-select" style="background: var(--bg-card); color: var(--accent-amber); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-weight: 600;">
+          ${trackOptionsHtml}
+        </select>
+      `;
+
+      fileMappingList.appendChild(row);
+    });
+
+    const selects = fileMappingList.querySelectorAll('.track-select');
+    selects.forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const i = parseInt(e.target.dataset.idx);
+        selectedFilesMap[i].trackId = e.target.value;
+      });
+    });
+  }
+
+  confirmImportBtn.addEventListener('click', async () => {
+    if (selectedFilesMap.length === 0) {
+      alert('Por favor, selecione ao menos um arquivo de áudio (.wav ou .mp3).');
+      return;
+    }
+
+    importProgress.style.display = 'block';
+    confirmImportBtn.disabled = true;
+
+    try {
+      audioEngine.clearAudioBuffers();
+
+      let maxDuration = 0;
+
+      for (const item of selectedFilesMap) {
+        const audioBuffer = await audioEngine.decodeFile(item.file);
+        audioEngine.loadTrackBuffer(item.trackId, audioBuffer);
+        if (audioBuffer.duration > maxDuration) {
+          maxDuration = audioBuffer.duration;
+        }
+      }
+
+      const songTitle = document.getElementById('importSongTitle').value.trim() || 'Minha Música Custom';
+      const songKey = document.getElementById('importSongKey').value.trim() || 'G';
+      const songBpm = parseInt(document.getElementById('importSongBpm').value) || 120;
+
+      const newSong = {
+        id: 'custom_' + Date.now(),
+        title: songTitle,
+        artist: 'Minha Banda',
+        key: songKey,
+        bpm: songBpm,
+        timeSignature: '4/4',
+        duration: Math.round(maxDuration),
+        cover: '/covers/a_ele_a_gloria.png',
+        sections: [
+          { label: 'Intro', startTime: 0, endTime: Math.round(maxDuration * 0.15), color: '#6366f1' },
+          { label: 'Verso 1', startTime: Math.round(maxDuration * 0.15), endTime: Math.round(maxDuration * 0.4), color: '#3b82f6' },
+          { label: 'Refrão', startTime: Math.round(maxDuration * 0.4), endTime: Math.round(maxDuration * 0.7), color: '#a855f7' },
+          { label: 'Outro', startTime: Math.round(maxDuration * 0.7), endTime: Math.round(maxDuration), color: '#10b981' }
+        ],
+        chords: [
+          {
+            section: 'Intro',
+            lines: [{ chord: songKey, lyric: '(Faixas de áudio importadas em execução)' }]
+          }
+        ]
+      };
+
+      setlistManager.addSong(newSong);
+      loadSong(newSong);
+      mixerConsole.render();
+
+      importProgress.style.display = 'none';
+      confirmImportBtn.disabled = false;
+      importModal.classList.remove('open');
+      selectedFilesMap = [];
+      fileMappingList.innerHTML = '';
+      fileInput.value = '';
+    } catch (err) {
+      console.error('Erro ao decodificar arquivo de áudio:', err);
+      alert('Ocorreu um erro ao decodificar os arquivos de áudio. Verifique se os arquivos estão em formato WAV ou MP3 válido.');
+      importProgress.style.display = 'none';
+      confirmImportBtn.disabled = false;
+    }
+  });
+
   // Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;

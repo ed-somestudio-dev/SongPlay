@@ -135,6 +135,13 @@ export class SetlistManager {
     return this.songs[this.activeSongIndex];
   }
 
+  addSong(song) {
+    this.songs.push(song);
+    this.activeSongIndex = this.songs.length - 1;
+    this.render();
+    return song;
+  }
+
   render() {
     if (!this.container) return;
     this.container.innerHTML = '';

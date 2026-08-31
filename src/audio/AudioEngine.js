@@ -66,6 +66,42 @@ export class AudioEngine {
     this._startSyntheticAudioGenerators();
   }
 
+  async decodeFile(file) {
+    if (!this.ctx) this.init();
+    const arrayBuffer = await file.arrayBuffer();
+    return await this.ctx.decodeAudioData(arrayBuffer);
+  }
+
+  loadTrackBuffer(trackId, audioBuffer) {
+    if (!this.channels[trackId]) return;
+    this.channels[trackId].audioBuffer = audioBuffer;
+    
+    // Update max duration
+    let maxDur = 0;
+    Object.values(this.channels).forEach(ch => {
+      if (ch.audioBuffer && ch.audioBuffer.duration > maxDur) {
+        maxDur = ch.audioBuffer.duration;
+      }
+    });
+    if (maxDur > 0) {
+      this.duration = maxDur;
+    }
+  }
+
+  clearAudioBuffers() {
+    Object.values(this.channels).forEach(ch => {
+      ch.audioBuffer = null;
+      if (ch.bufferSource) {
+        try { ch.bufferSource.stop(); } catch (e) {}
+        ch.bufferSource = null;
+      }
+    });
+  }
+
+  hasLoadedBuffers() {
+    return Object.values(this.channels).some(ch => ch.audioBuffer !== null);
+  }
+
   play() {
     if (!this.ctx) this.init();
     if (this.ctx.state === 'suspended') {
@@ -75,6 +111,9 @@ export class AudioEngine {
 
     this.isPlaying = true;
     this.startTime = this.ctx.currentTime - this.pauseOffset;
+
+    // Start AudioBuffer Sources for loaded stems
+    this._startBufferSources(this.pauseOffset);
 
     this._startPlaybackLoop();
   }
@@ -86,15 +125,52 @@ export class AudioEngine {
     if (this.animationFrame) {
       cancelAnimationFrame(this.animationFrame);
     }
+    this._stopBufferSources();
   }
 
   seek(seconds) {
-    this.pauseOffset = Math.max(0, Math.min(seconds, this.duration));
-    if (this.isPlaying) {
-      this.startTime = this.ctx.currentTime - this.pauseOffset;
+    const wasPlaying = this.isPlaying;
+    if (wasPlaying) {
+      this._stopBufferSources();
     }
+
+    this.pauseOffset = Math.max(0, Math.min(seconds, this.duration));
     this.currentTime = this.pauseOffset;
+    
+    if (wasPlaying) {
+      this.startTime = this.ctx.currentTime - this.pauseOffset;
+      this._startBufferSources(this.pauseOffset);
+    }
+    
     this._notifyTimeUpdate();
+  }
+
+  _startBufferSources(offsetSeconds) {
+    if (!this.ctx) return;
+    Object.keys(this.channels).forEach(id => {
+      const ch = this.channels[id];
+      if (ch.audioBuffer) {
+        if (ch.bufferSource) {
+          try { ch.bufferSource.stop(); } catch (e) {}
+        }
+        if (offsetSeconds < ch.audioBuffer.duration) {
+          const source = this.ctx.createBufferSource();
+          source.buffer = ch.audioBuffer;
+          source.connect(ch.gainNode);
+          source.start(0, offsetSeconds);
+          ch.bufferSource = source;
+        }
+      }
+    });
+  }
+
+  _stopBufferSources() {
+    Object.values(this.channels).forEach(ch => {
+      if (ch.bufferSource) {
+        try { ch.bufferSource.stop(); } catch (e) {}
+        ch.bufferSource = null;
+      }
+    });
   }
 
   setTrackVolume(trackId, volume) {
@@ -196,6 +272,7 @@ export class AudioEngine {
 
   _triggerSyntheticSoundEvents(time) {
     if (!this.ctx) return;
+    if (this.hasLoadedBuffers()) return; // Don't overlay synthetic audio if real stems are loaded!
     const secondsPerBeat = 60 / this.bpm;
     const currentBeat = Math.floor(time / secondsPerBeat);
 
