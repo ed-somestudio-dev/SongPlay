@@ -94,9 +94,10 @@ function initApp() {
     document.getElementById('hdrTimeSig').textContent = song.timeSignature;
     updateTimeDisplay(0);
 
-    // Update Timeline Sections
+    // Update Timeline Sections (labels drawn on canvas now)
     waveformTimeline.setSections(song.sections);
-    renderSectionBanners(song.sections);
+    queuedSection = null;
+    waveformTimeline.setQueuedSection(null);
 
     // Update Chord Sync
     chordSyncViewer.setSong(song);
@@ -124,80 +125,25 @@ function initApp() {
     }
   });
 
-  function handleSectionClick(sec, isShiftKey = false) {
+  // Wire waveform section click → quantized jump logic
+  waveformTimeline.onSectionClick((sec, isShiftKey) => handleSectionClick(sec, isShiftKey));
 
+  function handleSectionClick(sec, isShiftKey = false) {
     if (isShiftKey || !audioEngine.isPlaying) {
       // Shift+click or paused = IMMEDIATE jump
       queuedSection = null;
+      waveformTimeline.setQueuedSection(null);
       audioEngine.seek(sec.startTime);
       waveformTimeline.render();
     } else {
       // Regular click while playing = queue jump for end of current section
       if (queuedSection && queuedSection.label === sec.label) {
-        // Click same section again = cancel the queue
-        queuedSection = null;
+        queuedSection = null; // cancel
       } else {
         queuedSection = sec;
       }
+      waveformTimeline.setQueuedSection(queuedSection);
     }
-    updateSectionBannersUI(true);
-  }
-
-  function updateSectionBannersUI(force = false) {
-    const container = document.getElementById('sectionBannersContainer');
-    if (!container || !currentSong || !currentSong.sections) return;
-
-    const currentTime = audioEngine.currentTime || 0;
-    const activeSec = currentSong.sections.find(s => currentTime >= s.startTime && currentTime <= s.endTime);
-    const activeLabel = activeSec ? activeSec.label : null;
-    const queuedLabel = queuedSection ? queuedSection.label : null;
-
-    if (!force && activeLabel === lastActiveSecLabel && queuedLabel === lastQueuedSecLabel) {
-      return;
-    }
-
-    lastActiveSecLabel = activeLabel;
-    lastQueuedSecLabel = queuedLabel;
-
-    const tags = container.querySelectorAll('.section-tag');
-    tags.forEach((tag, idx) => {
-      const sec = currentSong.sections[idx];
-      if (!sec) return;
-
-      tag.className = `section-tag tag-${sec.label.toLowerCase().replace(/[^a-z]/g, '')}`;
-      let text = sec.label;
-
-      if (activeLabel === sec.label) {
-        tag.classList.add('active-section');
-      }
-
-      if (queuedLabel === sec.label) {
-        tag.classList.add('queued-jump');
-        // No text change — only CSS outline pulse
-      }
-
-      tag.textContent = text;
-    });
-  }
-
-  function renderSectionBanners(sections) {
-    const container = document.getElementById('sectionBannersContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    sections.forEach(sec => {
-      const tag = document.createElement('div');
-      tag.className = `section-tag tag-${sec.label.toLowerCase().replace(/[^a-z]/g, '')}`;
-      tag.textContent = sec.label;
-      tag.style.backgroundColor = sec.color;
-
-      tag.addEventListener('click', (e) => {
-        handleSectionClick(sec, e.shiftKey);
-      });
-
-      container.appendChild(tag);
-    });
-    updateSectionBannersUI(true);
   }
 
   // Audio Engine Time Update Subscription
@@ -223,11 +169,10 @@ function initApp() {
         if (queuedSection) {
           const target = queuedSection;
           queuedSection = null;
+          waveformTimeline.setQueuedSection(null);
           audioEngine.seek(target.startTime);
-          updateSectionBannersUI(true);
         } else if (isLoopActive) {
           audioEngine.seek(activeSec.startTime);
-          updateSectionBannersUI(true);
         }
       }
     }
