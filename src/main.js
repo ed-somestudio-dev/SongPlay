@@ -124,20 +124,21 @@ function initApp() {
     }
   });
 
-  function handleSectionClick(sec, isAltKey = false) {
+  function handleSectionClick(sec, isShiftKey = false) {
 
-    if (isAltKey && audioEngine.isPlaying) {
-      // Alt + Click queues jump for section end
+    if (isShiftKey || !audioEngine.isPlaying) {
+      // Shift+click or paused = IMMEDIATE jump
+      queuedSection = null;
+      audioEngine.seek(sec.startTime);
+      waveformTimeline.render();
+    } else {
+      // Regular click while playing = queue jump for end of current section
       if (queuedSection && queuedSection.label === sec.label) {
+        // Click same section again = cancel the queue
         queuedSection = null;
       } else {
         queuedSection = sec;
       }
-    } else {
-      // Immediate jump on click (or 1-9 key)
-      queuedSection = null;
-      audioEngine.seek(sec.startTime);
-      waveformTimeline.render();
     }
     updateSectionBannersUI(true);
   }
@@ -191,7 +192,7 @@ function initApp() {
       tag.style.backgroundColor = sec.color;
 
       tag.addEventListener('click', (e) => {
-        handleSectionClick(sec, e.altKey);
+        handleSectionClick(sec, e.shiftKey);
       });
 
       container.appendChild(tag);
