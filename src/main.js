@@ -70,7 +70,6 @@ function initApp() {
 
   // ── State variables declared here (before loadSong) to avoid TDZ errors ──
   let queuedSection = null;
-  let isLoopActive = false;
   let lastHandledTransitionTime = -1;
   let lastActiveSecLabel = null;
   let lastQueuedSecLabel = null;
@@ -108,14 +107,6 @@ function initApp() {
       padPlayer.playKey(song.key);
       updatePadGridActiveKey(song.key);
     }
-  }
-
-  const loopBtn = document.getElementById('loopBtn');
-  if (loopBtn) {
-    loopBtn.addEventListener('click', () => {
-      isLoopActive = !isLoopActive;
-      loopBtn.classList.toggle('active', isLoopActive);
-    });
   }
 
   // Global AudioContext Unlocker for browser autoplay policies
@@ -182,9 +173,6 @@ function initApp() {
           audioEngine.seek(target.startTime);
         } else if (loopedSection && loopedSection.label === activeSec.label) {
           // Per-section loop
-          audioEngine.seek(activeSec.startTime);
-        } else if (isLoopActive) {
-          // Global loop
           audioEngine.seek(activeSec.startTime);
         }
       }
