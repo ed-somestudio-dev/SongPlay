@@ -173,7 +173,7 @@ function initApp() {
 
       if (queuedLabel === sec.label) {
         tag.classList.add('queued-jump');
-        text = `⏳ PRÓXIMO: ${sec.label}`;
+        // No text change — only CSS outline pulse
       }
 
       tag.textContent = text;
