@@ -178,7 +178,7 @@ export class WaveformTimeline {
     const LABEL_PAD_X = 6;
     const LABEL_PAD_Y = 4;
     const LOOP_R  = 7;
-    const LOOP_MARGIN = 4;
+    const LOOP_MARGIN = 14;
 
     this.ctx.textBaseline = 'middle';
     this.ctx.textAlign = 'left';
@@ -188,19 +188,19 @@ export class WaveformTimeline {
       const endX    = (sec.endTime   / duration) * width;
       const secWidth = endX - startX;
 
-      // Loop icon area (top-right corner of section)
+      // Loop icon area (top-right corner of section, spaced away from right border)
       const loopIconCX = endX - LOOP_R - LOOP_MARGIN;
       const loopIconCY = LABEL_PAD_Y + LABEL_H / 2;
       const isLooped = this.loopedSection && this.loopedSection.label === sec.label;
 
       // Only draw loop icon if section is wide enough
-      if (secWidth > LOOP_R * 2 + 4) {
+      if (secWidth > (LOOP_R + LOOP_MARGIN) * 2) {
         this._drawLoopIcon(loopIconCX, loopIconCY, LOOP_R, isLooped, isLooped ? 1 : 0.55);
         this._loopIconAreas.push({
-          x: loopIconCX - LOOP_R - 2,
-          y: loopIconCY - LOOP_R - 2,
-          w: (LOOP_R + 2) * 2,
-          h: (LOOP_R + 2) * 2,
+          x: loopIconCX - LOOP_R - 3,
+          y: loopIconCY - LOOP_R - 3,
+          w: (LOOP_R + 3) * 2,
+          h: (LOOP_R + 3) * 2,
           sec,
         });
       }
