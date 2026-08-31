@@ -328,6 +328,17 @@ body {
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
 }
 
+.section-tag.queued-jump {
+  outline: 2px dashed var(--accent-amber);
+  animation: pulse-queue 0.8s infinite alternate;
+  box-shadow: 0 0 14px rgba(255, 145, 0, 0.8);
+}
+
+@keyframes pulse-queue {
+  0% { transform: scale(0.96); opacity: 0.7; }
+  100% { transform: scale(1.04); opacity: 1; }
+}
+
 .tag-intro { background: #6366f1; }
 .tag-verse { background: #3b82f6; }
 .tag-chorus { background: #a855f7; }

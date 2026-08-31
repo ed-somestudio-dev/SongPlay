@@ -76,6 +76,65 @@ function initApp() {
     }
   }
 
+  let queuedSection = null;
+  let isLoopActive = false;
+  let lastHandledTransitionTime = -1;
+
+  const loopBtn = document.getElementById('loopBtn');
+  if (loopBtn) {
+    loopBtn.addEventListener('click', () => {
+      isLoopActive = !isLoopActive;
+      loopBtn.classList.toggle('active', isLoopActive);
+    });
+  }
+
+  function handleSectionClick(sec, isShiftOrOverride = false) {
+    if (!audioEngine.isPlaying || isShiftOrOverride) {
+      // Immediate jump if paused or shift is held
+      queuedSection = null;
+      audioEngine.seek(sec.startTime);
+      waveformTimeline.render();
+      updateSectionBannersUI();
+      return;
+    }
+
+    // Toggle queue: if already queued this section, cancel queue
+    if (queuedSection && queuedSection.label === sec.label) {
+      queuedSection = null;
+    } else {
+      queuedSection = sec;
+    }
+    updateSectionBannersUI();
+  }
+
+  function updateSectionBannersUI() {
+    const container = document.getElementById('sectionBannersContainer');
+    if (!container || !currentSong || !currentSong.sections) return;
+
+    const currentTime = audioEngine.currentTime || 0;
+    const activeSec = currentSong.sections.find(s => currentTime >= s.startTime && currentTime <= s.endTime);
+
+    const tags = container.querySelectorAll('.section-tag');
+    tags.forEach((tag, idx) => {
+      const sec = currentSong.sections[idx];
+      if (!sec) return;
+
+      tag.className = `section-tag tag-${sec.label.toLowerCase().replace(/[^a-z]/g, '')}`;
+      let text = sec.label;
+
+      if (activeSec && activeSec.label === sec.label) {
+        tag.classList.add('active-section');
+      }
+
+      if (queuedSection && queuedSection.label === sec.label) {
+        tag.classList.add('queued-jump');
+        text = `⏳ PRÓXIMO: ${sec.label}`;
+      }
+
+      tag.textContent = text;
+    });
+  }
+
   function renderSectionBanners(sections) {
     const container = document.getElementById('sectionBannersContainer');
     if (!container) return;
@@ -87,13 +146,13 @@ function initApp() {
       tag.textContent = sec.label;
       tag.style.backgroundColor = sec.color;
 
-      tag.addEventListener('click', () => {
-        audioEngine.seek(sec.startTime);
-        waveformTimeline.render();
+      tag.addEventListener('click', (e) => {
+        handleSectionClick(sec, e.shiftKey);
       });
 
       container.appendChild(tag);
     });
+    updateSectionBannersUI();
   }
 
   // Audio Engine Time Update Subscription
@@ -101,11 +160,30 @@ function initApp() {
     updateTimeDisplay(currentTime);
     waveformTimeline.render();
 
-    // Check active song section
-    if (currentSong && currentSong.sections) {
-      const activeSec = currentSong.sections.find(sec => currentTime >= sec.startTime && currentTime <= sec.endTime);
-      if (activeSec) {
-        chordSyncViewer.updateActiveSection(activeSec.label);
+    if (!currentSong || !currentSong.sections) return;
+
+    const activeSec = currentSong.sections.find(sec => currentTime >= sec.startTime && currentTime <= sec.endTime);
+    if (activeSec) {
+      chordSyncViewer.updateActiveSection(activeSec.label);
+    }
+
+    updateSectionBannersUI();
+
+    // Check Section End Transition (Quantized Jump or Loop)
+    if (audioEngine.isPlaying && activeSec) {
+      const timeUntilEnd = activeSec.endTime - currentTime;
+      if (timeUntilEnd <= 0.3 && Math.abs(currentTime - lastHandledTransitionTime) > 1.0) {
+        lastHandledTransitionTime = currentTime;
+
+        if (queuedSection) {
+          const target = queuedSection;
+          queuedSection = null;
+          audioEngine.seek(target.startTime);
+          updateSectionBannersUI();
+        } else if (isLoopActive) {
+          audioEngine.seek(activeSec.startTime);
+          updateSectionBannersUI();
+        }
       }
     }
   });
@@ -401,7 +479,7 @@ function initApp() {
     } else if (e.code >= 'Digit1' && e.code <= 'Digit9') {
       const idx = parseInt(e.code.replace('Digit', '')) - 1;
       if (currentSong && currentSong.sections && currentSong.sections[idx]) {
-        audioEngine.seek(currentSong.sections[idx].startTime);
+        handleSectionClick(currentSong.sections[idx], e.shiftKey);
       }
     }
   });
