@@ -417,6 +417,8 @@ body {
   align-items: center;
   justify-content: space-between;
   position: relative;
+  overflow: hidden;
+  max-height: 340px;
 }
 
 .channel-strip.master-strip {
@@ -491,11 +493,14 @@ body {
   flex: 1;
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 0;
+  gap: 6px;
+  padding: 8px 0;
   position: relative;
+  min-height: 0;
+  max-height: 220px;
+  overflow: hidden;
 }
 
 .fader-track {
@@ -664,6 +669,7 @@ body {
 .vu-meter {
   width: 10px;
   height: 100%;
+  max-height: 220px;
   background: #090a0d;
   border: 1px solid #1f2533;
   border-radius: 3px;
@@ -671,6 +677,7 @@ body {
   flex-direction: column-reverse;
   padding: 2px;
   gap: 2px;
+  overflow: hidden;
 }
 
 .vu-led {
