@@ -26,8 +26,13 @@ export class PadPlayer {
     };
   }
 
-  init(destinationNode) {
-    if (!this.ctx) return;
+  init(destinationNode, audioCtx) {
+    if (audioCtx) this.ctx = audioCtx;
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.padGainNode) return;
     this.padGainNode = this.ctx.createGain();
     this.padGainNode.gain.value = this.volume;
 
@@ -43,7 +48,10 @@ export class PadPlayer {
     }
   }
 
-  playKey(keyName) {
+  playKey(keyName, destinationNode, audioCtx) {
+    if (!this.ctx || !this.padGainNode) {
+      this.init(destinationNode, audioCtx);
+    }
     if (!this.ctx) return;
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();

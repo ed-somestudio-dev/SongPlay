@@ -6,9 +6,10 @@ import { SetlistManager } from './components/SetlistManager.js';
 import { ChordSyncViewer } from './components/ChordSyncViewer.js';
 import { MidiCueEditor } from './components/MidiCueEditor.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   // 1. Initialize Audio Engine & Pad Player
   const audioEngine = new AudioEngine();
+  audioEngine.init();
   const padPlayer = new PadPlayer(audioEngine.ctx);
 
   // 2. Initialize Setlist Manager
@@ -173,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updatePadGridActiveKey(null);
       padBtn.classList.remove('active');
     } else {
-      padPlayer.playKey(key);
+      padPlayer.playKey(key, audioEngine.masterGain, audioEngine.ctx);
       updatePadGridActiveKey(key);
       padBtn.classList.add('active');
     }
@@ -404,4 +405,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
