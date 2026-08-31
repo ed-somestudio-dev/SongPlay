@@ -10,14 +10,17 @@ export class WaveformTimeline {
     this.onSectionClickCallback = null;
     this.onSectionLoopToggleCallback = null;
 
-    // Store loop icon hit areas for click detection
-    this._loopIconAreas = [];
+    this.cachedPeaks = null;
+    this.cachedPeaksCount = 0;
+    this.lastBufferStateKey = '';
 
+    this._loopIconAreas = [];
     this._setupEvents();
   }
 
   setSections(sections) {
     this.sections = sections;
+    this.invalidatePeaks();
     this.render();
   }
 
@@ -40,6 +43,101 @@ export class WaveformTimeline {
 
   onSectionLoopToggle(cb) {
     this.onSectionLoopToggleCallback = cb;
+  }
+
+  invalidatePeaks() {
+    this.cachedPeaks = null;
+  }
+
+  /**
+   * Extract real PCM audio peaks from loaded AudioBuffers,
+   * or generate realistic section-based multitrack waveform peaks for demo songs.
+   */
+  _getOrComputePeaks(numBars) {
+    // Generate cache key based on loaded buffers
+    const bufferKey = Object.entries(this.audioEngine.channels || {})
+      .map(([id, ch]) => `${id}:${ch.audioBuffer ? ch.audioBuffer.length : 0}`)
+      .join('|') + `_${this.sections.length}_${numBars}`;
+
+    if (this.cachedPeaks && this.lastBufferStateKey === bufferKey && this.cachedPeaksCount === numBars) {
+      return this.cachedPeaks;
+    }
+
+    this.lastBufferStateKey = bufferKey;
+    this.cachedPeaksCount = numBars;
+
+    // Check if any channel has a real AudioBuffer loaded
+    const loadedChannels = Object.values(this.audioEngine.channels || {})
+      .filter(ch => ch.audioBuffer && ch.audioBuffer.length > 0);
+
+    const peaks = new Float32Array(numBars);
+
+    if (loadedChannels.length > 0) {
+      // ── REAL AUDIO WAVEFORM EXTRACTION ─────────────────────────────────────
+      for (const ch of loadedChannels) {
+        const buffer = ch.audioBuffer;
+        const pcm = buffer.getChannelData(0);
+        const step = Math.floor(pcm.length / numBars);
+
+        for (let i = 0; i < numBars; i++) {
+          const start = i * step;
+          const end = Math.min(start + step, pcm.length);
+          let maxVal = 0;
+
+          // Find peak amplitude in bucket
+          for (let j = start; j < end; j += 4) { // stride of 4 for fast computation
+            const abs = Math.abs(pcm[j]);
+            if (abs > maxVal) maxVal = abs;
+          }
+
+          peaks[i] = Math.max(peaks[i], maxVal);
+        }
+      }
+
+      // Normalize real peaks so highest peak is ~0.95
+      let maxPeak = 0;
+      for (let i = 0; i < numBars; i++) {
+        if (peaks[i] > maxPeak) maxPeak = peaks[i];
+      }
+      if (maxPeak > 0) {
+        for (let i = 0; i < numBars; i++) {
+          peaks[i] = Math.min(1.0, peaks[i] / maxPeak);
+        }
+      }
+    } else {
+      // ── REALISTIC MULTITRACK DEMO WAVEFORM GENERATION ──────────────────────
+      const totalDuration = this.audioEngine.duration || 278;
+
+      for (let i = 0; i < numBars; i++) {
+        const barTime = (i / numBars) * totalDuration;
+
+        // Find which section this bar belongs to
+        const currentSec = this.sections.find(s => barTime >= s.startTime && barTime <= s.endTime);
+
+        let sectionEnergy = 0.5; // Default energy
+        if (currentSec) {
+          const label = currentSec.label.toLowerCase();
+          if (label.includes('intro')) sectionEnergy = 0.38;
+          else if (label.includes('verso') || label.includes('verse')) sectionEnergy = 0.55;
+          else if (label.includes('refr') || label.includes('chorus')) sectionEnergy = 0.92;
+          else if (label.includes('ponte') || label.includes('bridge')) sectionEnergy = 0.68;
+          else if (label.includes('outro') || label.includes('coda')) sectionEnergy = 0.30;
+          else if (label.includes('pré') || label.includes('pre')) sectionEnergy = 0.75;
+          else if (label.includes('solo')) sectionEnergy = 0.88;
+        }
+
+        // Add organic micro-variations (snare/kick dynamics + harmonics)
+        const beatPulse = Math.pow(Math.abs(Math.sin((i * Math.PI * 8) / (numBars / 16))), 2.5) * 0.25;
+        const subDynamic = Math.sin(i * 0.35) * 0.12 + Math.cos(i * 0.8) * 0.08;
+        const noise = (Math.sin(i * 999) * 0.5 + 0.5) * 0.08;
+
+        const val = Math.max(0.12, Math.min(0.98, sectionEnergy * (0.65 + subDynamic + beatPulse + noise)));
+        peaks[i] = val;
+      }
+    }
+
+    this.cachedPeaks = peaks;
+    return peaks;
   }
 
   // Abbreviate section labels: "Verso 1" → "V1", "Refrão" → "Rf", etc.
@@ -67,11 +165,10 @@ export class WaveformTimeline {
       if (rx.test(label)) return abbrev + num;
     }
 
-    // Fallback: up to 2 first chars uppercase + number
     return label.substring(0, 2).toUpperCase() + num;
   }
 
-  // Draw a loop (circular arrow) icon centered at cx, cy with radius r
+  // Draw loop icon centered at cx, cy with radius r
   _drawLoopIcon(cx, cy, r, active, alpha = 1) {
     const ctx = this.ctx;
     ctx.save();
@@ -80,20 +177,18 @@ export class WaveformTimeline {
     ctx.fillStyle = active ? '#00e676' : 'rgba(255,255,255,0.7)';
     ctx.lineWidth = 1.5;
 
-    // Arc: 270° sweep (leaving gap for arrow)
     const startAngle = -Math.PI * 0.75;
     const endAngle   =  Math.PI * 0.75;
     ctx.beginPath();
     ctx.arc(cx, cy, r, startAngle, endAngle);
     ctx.stroke();
 
-    // Arrowhead at end of arc (top-right)
     const arrowTip = {
       x: cx + Math.cos(endAngle) * r,
       y: cy + Math.sin(endAngle) * r,
     };
     const arrowAngle = endAngle + Math.PI / 2;
-    const as = 3.5; // arrowhead size
+    const as = 3.5;
     ctx.beginPath();
     ctx.moveTo(arrowTip.x, arrowTip.y);
     ctx.lineTo(
@@ -118,6 +213,7 @@ export class WaveformTimeline {
     if (this.canvas.width !== width || this.canvas.height !== height) {
       this.canvas.width = width;
       this.canvas.height = height;
+      this.invalidatePeaks();
     }
 
     const duration = this.audioEngine.duration || 1;
@@ -139,27 +235,32 @@ export class WaveformTimeline {
       this.ctx.stroke();
     }
 
-    // ── 3. Waveform Bars (drawn FIRST — behind all overlays) ────────────────
-    const barCount = 120;
+    // ── 3. Waveform Bars (REAL AUDIO / MULTITRACK DYNAMICS — drawn FIRST) ──
+    const barCount = Math.max(120, Math.floor(width / 3.5)); // High density Playback style bars
     const barWidth = width / barCount;
+    const peaks = this._getOrComputePeaks(barCount);
+
     for (let i = 0; i < barCount; i++) {
       const barX = i * barWidth;
       const progressRatio = barX / width;
       const isPlayed = progressRatio <= (currentTime / duration);
-      const amp = Math.sin(i * 0.15) * 0.4 + Math.cos(i * 0.08) * 0.3 + 0.35;
-      const barHeight = Math.max(8, amp * (height * 0.75));
+      const amp = peaks[i] || 0.1;
+
+      // Realistic Playback style mirrored waveform bar height
+      const barHeight = Math.max(6, amp * (height * 0.72));
       const barY = (height - barHeight) / 2;
+
       this.ctx.fillStyle = isPlayed ? '#00e676' : '#2b3345';
-      this.ctx.fillRect(barX + 1, barY, barWidth - 2, barHeight);
+      this.ctx.fillRect(barX + 0.5, barY, Math.max(1, barWidth - 1.5), barHeight);
     }
 
-    // ── 4. Section tints + boundary lines (over waveform) ───────────────────
+    // ── 4. Section color tints + boundary lines (over waveform) ─────────────
     this.sections.forEach(sec => {
       const startX = (sec.startTime / duration) * width;
       const endX   = (sec.endTime   / duration) * width;
       const secWidth = endX - startX;
 
-      // Section color tint overlay
+      // Section tint overlay
       this.ctx.fillStyle = sec.color + '44';
       this.ctx.fillRect(startX, 0, secWidth, height);
 
@@ -188,12 +289,11 @@ export class WaveformTimeline {
       const endX    = (sec.endTime   / duration) * width;
       const secWidth = endX - startX;
 
-      // Loop icon area (top-right corner of section, spaced away from right border)
+      // Loop icon area (top-right corner of section)
       const loopIconCX = endX - LOOP_R - LOOP_MARGIN;
       const loopIconCY = LABEL_PAD_Y + LABEL_H / 2;
       const isLooped = this.loopedSection && this.loopedSection.label === sec.label;
 
-      // Only draw loop icon if section is wide enough
       if (secWidth > (LOOP_R + LOOP_MARGIN) * 2) {
         this._drawLoopIcon(loopIconCX, loopIconCY, LOOP_R, isLooped, isLooped ? 1 : 0.55);
         this._loopIconAreas.push({
@@ -213,12 +313,10 @@ export class WaveformTimeline {
       const pillW = Math.min(abbrevW + LABEL_PAD_X * 2, secWidth - (LOOP_R * 2 + LOOP_MARGIN * 2) - 6);
 
       if (pillW > 10) {
-        // Pill background
         this.ctx.fillStyle = sec.color + 'dd';
         this._roundRect(startX + 2, LABEL_PAD_Y, pillW, LABEL_H, 4);
         this.ctx.fill();
 
-        // Abbreviation text
         this.ctx.fillStyle = '#fff';
         this.ctx.fillText(
           abbrev,
@@ -346,6 +444,8 @@ export class WaveformTimeline {
       if (clickedSection && this.onSectionClickCallback) {
         this.onSectionClickCallback(clickedSection, e.shiftKey);
       } else {
+        // 3. Free click seek outside sections
+        this.audioEngine.seek(targetTime);
       }
     });
 
@@ -355,7 +455,6 @@ export class WaveformTimeline {
       const touch = e.touches[0];
       const pos = getCanvasPos({ clientX: touch.clientX, clientY: touch.clientY });
 
-      // 1. Check loop icon hit
       const loopHit = this._loopIconAreas.find(
         area => pos.x >= area.x && pos.x <= area.x + area.w &&
                 pos.y >= area.y && pos.y <= area.y + area.h
@@ -367,7 +466,6 @@ export class WaveformTimeline {
         return;
       }
 
-      // 2. Check section block click
       const targetTime = getTimeFromEvent({ clientX: touch.clientX });
       const clickedSection = this.sections.find(
         sec => targetTime >= sec.startTime && targetTime <= sec.endTime
