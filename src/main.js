@@ -88,24 +88,29 @@ function initApp() {
     });
   }
 
+  // Global AudioContext Unlocker for browser autoplay policies
+  window.addEventListener('click', () => {
+    if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+      audioEngine.ctx.resume().catch(() => {});
+    }
+  });
+
   let lastActiveSecLabel = null;
   let lastQueuedSecLabel = null;
 
-  function handleSectionClick(sec, isShiftOrOverride = false) {
-    if (!audioEngine.isPlaying || isShiftOrOverride) {
-      // Immediate jump if paused or shift is held
+  function handleSectionClick(sec, isAltKey = false) {
+    if (isAltKey && audioEngine.isPlaying) {
+      // Alt + Click queues jump for section end
+      if (queuedSection && queuedSection.label === sec.label) {
+        queuedSection = null;
+      } else {
+        queuedSection = sec;
+      }
+    } else {
+      // Immediate jump on click (or 1-9 key)
       queuedSection = null;
       audioEngine.seek(sec.startTime);
       waveformTimeline.render();
-      updateSectionBannersUI(true);
-      return;
-    }
-
-    // Toggle queue: if already queued this section, cancel queue
-    if (queuedSection && queuedSection.label === sec.label) {
-      queuedSection = null;
-    } else {
-      queuedSection = sec;
     }
     updateSectionBannersUI(true);
   }
@@ -159,7 +164,7 @@ function initApp() {
       tag.style.backgroundColor = sec.color;
 
       tag.addEventListener('click', (e) => {
-        handleSectionClick(sec, e.shiftKey);
+        handleSectionClick(sec, e.altKey);
       });
 
       container.appendChild(tag);
@@ -191,10 +196,10 @@ function initApp() {
           const target = queuedSection;
           queuedSection = null;
           audioEngine.seek(target.startTime);
-          updateSectionBannersUI();
+          updateSectionBannersUI(true);
         } else if (isLoopActive) {
           audioEngine.seek(activeSec.startTime);
-          updateSectionBannersUI();
+          updateSectionBannersUI(true);
         }
       }
     }
@@ -224,11 +229,11 @@ function initApp() {
     }
   });
 
-  playPauseBtn.addEventListener('click', () => {
+  playPauseBtn.addEventListener('click', async () => {
     if (audioEngine.isPlaying) {
       audioEngine.pause();
     } else {
-      audioEngine.play();
+      await audioEngine.play();
     }
   });
 
