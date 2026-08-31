@@ -6,12 +6,38 @@ import { SetlistManager } from './components/SetlistManager.js';
 import { ChordSyncViewer } from './components/ChordSyncViewer.js';
 import { MidiCueEditor } from './components/MidiCueEditor.js';
 
+// === DEBUG OVERLAY — shows JS errors visually on-screen ===
+function showDebugError(msg) {
+  let panel = document.getElementById('__debugPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = '__debugPanel';
+    panel.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff1744;color:#fff;font:13px monospace;padding:10px 16px;white-space:pre-wrap;max-height:200px;overflow:auto;';
+    document.body.appendChild(panel);
+  }
+  panel.textContent += '\n❌ ' + msg;
+  console.error('[DEBUG]', msg);
+}
+
+window.onerror = (msg, src, line, col, err) => {
+  showDebugError(`${msg}\n   at ${src}:${line}:${col}`);
+};
+
+window.onunhandledrejection = (e) => {
+  showDebugError('Promise rejected: ' + (e.reason?.stack || e.reason));
+};
+// === END DEBUG OVERLAY ===
+
 function initApp() {
-  // 1. Initialize Audio Engine & Pad Player
-  // NOTE: AudioContext is created lazily on first user interaction (play button click)
-  // to comply with browser autoplay policies.
+
+  // 1. Initialize Audio Engine
+  // init() creates the AudioContext and channel nodes (needed for MixerConsole to render).
+  // The AudioContext starts in 'suspended' state per browser autoplay policy.
+  // play() already calls await ctx.resume() before starting playback.
   const audioEngine = new AudioEngine();
-  // padPlayer is initialized lazily too — first pad click calls padPlayer.init()
+  audioEngine.init();
+
+  // padPlayer is initialized lazily — first pad click calls padPlayer init
   let padPlayer = null;
 
   // 2. Initialize Setlist Manager
