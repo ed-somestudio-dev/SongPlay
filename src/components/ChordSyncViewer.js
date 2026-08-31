@@ -10,6 +10,7 @@ export class ChordSyncViewer {
 
   setSong(song) {
     this.currentSong = song;
+    this.activeSectionLabel = (song && song.sections && song.sections[0]) ? song.sections[0].label : null;
     this.render();
   }
 
@@ -28,20 +29,70 @@ export class ChordSyncViewer {
     this.render();
   }
 
-  updateActiveSection(sectionLabel) {
-    if (this.activeSectionLabel === sectionLabel) return;
+  updateActiveSection(sectionLabel, queuedSectionLabel = null) {
+    if (!sectionLabel) return;
     this.activeSectionLabel = sectionLabel;
 
     if (!this.container) return;
-    const blocks = this.container.querySelectorAll('.chord-section-block');
-    blocks.forEach(block => {
-      if (block.dataset.section === sectionLabel) {
-        block.classList.add('active-block');
-        block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } else {
-        block.classList.remove('active-block');
+    const contentArea = this.container.querySelector('.chord-content');
+    if (!contentArea) return;
+
+    const blocks = Array.from(contentArea.querySelectorAll('.chord-section-block'));
+    if (blocks.length === 0) return;
+
+    let activeIdx = -1;
+    let queuedIdx = -1;
+
+    blocks.forEach((block, idx) => {
+      const blockSec = block.dataset.section || '';
+      const isActiveMatch = this._isSectionMatch(blockSec, sectionLabel);
+      const isQueuedMatch = queuedSectionLabel ? this._isSectionMatch(blockSec, queuedSectionLabel) : false;
+
+      block.classList.remove('active-block', 'next-preview-block');
+
+      if (isActiveMatch) {
+        activeIdx = idx;
+      }
+      if (isQueuedMatch) {
+        queuedIdx = idx;
       }
     });
+
+    if (activeIdx !== -1) {
+      blocks[activeIdx].classList.add('active-block');
+
+      // Target for upcoming section preview: explicit queued section or next sequential block
+      const nextIdx = (queuedIdx !== -1) ? queuedIdx : activeIdx + 1;
+      if (nextIdx < blocks.length && nextIdx !== activeIdx) {
+        blocks[nextIdx].classList.add('next-preview-block');
+      }
+
+      // Smooth scroll active block directly to the TOP of the viewing window
+      const targetTop = blocks[activeIdx].offsetTop - contentArea.offsetTop - 10;
+      contentArea.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    }
+  }
+
+  _isSectionMatch(nameA, nameB) {
+    if (!nameA || !nameB) return false;
+    const a = nameA.trim().toLowerCase();
+    const b = nameB.trim().toLowerCase();
+    if (a === b) return true;
+
+    // Check normalized equivalents (Verso 1 vs V1, Refrão vs Rf, etc.)
+    const normA = this._normalizeSec(nameA);
+    const normB = this._normalizeSec(nameB);
+    return normA === normB || a.includes(b) || b.includes(a);
+  }
+
+  _normalizeSec(str) {
+    return str.toLowerCase()
+      .replace(/verso\s*/g, 'v')
+      .replace(/refrão|refrao\s*/g, 'rf')
+      .replace(/ponte|bridge\s*/g, 'p')
+      .replace(/intro\s*/g, 'i')
+      .replace(/outro\s*/g, 'o')
+      .replace(/\s+/g, '');
   }
 
   render() {
@@ -67,7 +118,7 @@ export class ChordSyncViewer {
 
     this.currentSong.chords.forEach(chBlock => {
       const blockEl = document.createElement('div');
-      blockEl.className = `chord-section-block ${chBlock.section === this.activeSectionLabel ? 'active-block' : ''}`;
+      blockEl.className = 'chord-section-block';
       blockEl.dataset.section = chBlock.section;
 
       let html = `<div class="block-title">${chBlock.section}</div>`;
@@ -84,6 +135,10 @@ export class ChordSyncViewer {
       blockEl.innerHTML = html;
       contentArea.appendChild(blockEl);
     });
+
+    if (this.activeSectionLabel) {
+      setTimeout(() => this.updateActiveSection(this.activeSectionLabel), 30);
+    }
   }
 
   _transposeChordLine(chordStr, semitones) {
